@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmployeesModule } from './employees/employees.module';
 import { OwnersModule } from './owners/owners.module';
+import { ClientsModule } from './clients/clients.module';
+import { RealEstatesModule } from './real-estates/real-estates.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { OwnersModule } from './owners/owners.module';
     UsersModule,
     EmployeesModule,
     OwnersModule,
+    ClientsModule,
+    RealEstatesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
