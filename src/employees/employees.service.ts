@@ -13,7 +13,7 @@ export class EmployeesService {
     });
     console.log('Existing user:', existingUser);
     if (existingUser && existingUser.roles === 'EMPLOYEE') {
-      await this.removePreviousRole(userId);
+      // await this.removePreviousRole(userId);
       const existingEmployee = await this.prisma.employee.findUnique({
         where: { userId },
       });
@@ -35,25 +35,25 @@ export class EmployeesService {
       throw new NotFoundException('User does not have the role of EMPLOYEE.');
     }
   }
-  private async removePreviousRole(userId: number): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  // private async removePreviousRole(userId: number): Promise<void> {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //   });
 
-    if (user && user.roles !== null) {
-      switch (user.roles) {
-        case 'EMPLOYEE':
-          await this.prisma.employee.delete({ where: { userId } });
-          break;
-        case 'CLIENT':
-          await this.prisma.client.delete({ where: { userId } });
-          break;
-        case 'OWNER':
-          await this.prisma.owner.delete({ where: { userId } });
-          break;
-      }
-    }
-  }
+  //   if (user && user.roles !== null) {
+  //     switch (user.roles) {
+  //       case 'EMPLOYEE':
+  //         await this.prisma.employee.delete({ where: { userId } });
+  //         break;
+  //       case 'CLIENT':
+  //         await this.prisma.client.delete({ where: { userId } });
+  //         break;
+  //       case 'OWNER':
+  //         await this.prisma.owner.delete({ where: { userId } });
+  //         break;
+  //     }
+  //   }
+  // }
 
   async findAll(): Promise<Employee[]> {
     const foundAllEmployee = await this.prisma.employee.findMany({
