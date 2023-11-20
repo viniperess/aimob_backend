@@ -10,7 +10,7 @@ import { UsersModule } from './users/users.module';
 import { EmployeesModule } from './employees/employees.module';
 import { OwnersModule } from './owners/owners.module';
 import { ClientsModule } from './clients/clients.module';
-import { RealEstatesModule } from './real-estates/real-estates.module';
+import { RealestatesModule } from './realestates/realestates.module';
 
 @Module({
   imports: [
@@ -24,7 +24,7 @@ import { RealEstatesModule } from './real-estates/real-estates.module';
     EmployeesModule,
     OwnersModule,
     ClientsModule,
-    RealEstatesModule,
+    RealestatesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
