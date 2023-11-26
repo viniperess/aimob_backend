@@ -25,7 +25,7 @@ export class AppointmentsService {
 
     if (existingEmployee && existingClient && existingRealEstate) {
       const existingAppointment = await this.prisma.appointment.findFirst({
-        where: { date: data.date },
+        where: { visitDate: data.visitDate },
       });
 
       if (existingAppointment) {
