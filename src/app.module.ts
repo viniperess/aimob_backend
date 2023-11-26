@@ -11,6 +11,8 @@ import { EmployeesModule } from './employees/employees.module';
 import { OwnersModule } from './owners/owners.module';
 import { ClientsModule } from './clients/clients.module';
 import { RealestatesModule } from './realestates/realestates.module';
+import { AppointmentsModule } from './appointments/appointments.module';
+import { ContractsModule } from './contracts/contracts.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { RealestatesModule } from './realestates/realestates.module';
     OwnersModule,
     ClientsModule,
     RealestatesModule,
+    AppointmentsModule,
+    ContractsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
