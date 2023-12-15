@@ -25,4 +25,4 @@ primary_region = "gru"
   release_command = "npm run db:migrate"
 
 [env]
-  PORT = "5000"
+  PORT = "3000"
