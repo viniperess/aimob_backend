@@ -5,56 +5,51 @@ import { Appointment, PrismaClient } from '@prisma/client';
 export class AppointmentsService {
   constructor(private prisma: PrismaClient) {}
 
-  async create(
-    data: any,
-    clientId: number,
-    employeeId: number,
-    estateId: number,
-  ) {
-    const existingEmployee = await this.prisma.employee.findUnique({
-      where: { id: employeeId },
+  async create(data: any) {
+    const { userId, clientUserId, estateId, ...appointmentsData } = data;
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: userId },
     });
 
-    const existingClient = await this.prisma.client.findUnique({
-      where: { id: clientId },
+    const client = await this.prisma.user.findUnique({
+      where: { id: clientUserId },
     });
 
     const existingRealEstate = await this.prisma.realEstate.findUnique({
       where: { id: estateId },
     });
 
-    if (existingEmployee && existingClient && existingRealEstate) {
-      const existingAppointment = await this.prisma.appointment.findFirst({
-        where: { visitDate: data.visitDate },
-      });
-
-      if (existingAppointment) {
-        throw new NotFoundException('Appointment with this date not available');
-      }
-
-      const createdAppointment = await this.prisma.appointment.create({
-        data: {
-          ...data,
-          clientId: clientId,
-          employeeId: employeeId,
-          estateId: estateId,
-        },
-      });
-
-      return createdAppointment;
-    } else {
-      throw new NotFoundException(
-        'Client or Real Estate or Employee not found.',
-      );
+    if (!creator || !client || !existingRealEstate) {
+      throw new NotFoundException('User or Real Estate not found.');
     }
+
+    const existingAppointment = await this.prisma.appointment.findFirst({
+      where: { visitDate: data.visitDate },
+    });
+
+    if (existingAppointment) {
+      throw new NotFoundException('Appointment with this date not available');
+    }
+
+    const createdAppointment = await this.prisma.appointment.create({
+      data: {
+        ...appointmentsData,
+        employee: { connect: { id: userId } },
+        client: { connect: { id: clientUserId } },
+        realEstate: { connect: { id: estateId } },
+      },
+    });
+
+    return createdAppointment;
   }
 
   async findAll(): Promise<Appointment[]> {
     const foundAllAppointment = await this.prisma.appointment.findMany({
       include: {
-        Client: true,
-        Employee: true,
-        RealEstate: true,
+        employee: true,
+        client: true,
+        realEstate: true,
       },
     });
     return foundAllAppointment;
@@ -64,9 +59,9 @@ export class AppointmentsService {
     const foundOneAppointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {
-        Client: true,
-        Employee: true,
-        RealEstate: true,
+        employee: true,
+        client: true,
+        realEstate: true,
       },
     });
     return foundOneAppointment;

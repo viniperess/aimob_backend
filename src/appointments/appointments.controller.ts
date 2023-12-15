@@ -16,12 +16,7 @@ export class AppointmentsController {
 
   @Post()
   create(@Body() appointment: Appointment) {
-    return this.appointmentsService.create(
-      appointment,
-      appointment.clientId,
-      appointment.employeeId,
-      appointment.estateId,
-    );
+    return this.appointmentsService.create(appointment);
   }
 
   @Get()
