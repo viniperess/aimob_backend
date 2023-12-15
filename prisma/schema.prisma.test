@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  user      String    @unique @db.VarChar(255)
+  name      String    @db.VarChar(255)
+  email     String    @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  roles     Role      @default(CLIENT)
+  createdAt DateTime  @default(now()) @db.Timestamp(6)
+  Employee  Employee?
+  Owner     Owner?
+  Client    Client?
+}
+
+enum Role {
+  CLIENT
+  EMPLOYEE
+  OWNER
+}
+
+model Employee {
+  id           Int           @id @default(autoincrement())
+  birthdate    String        @db.VarChar(255)
+  city         String        @db.VarChar(255)
+  cpf          String        @unique @db.VarChar(255)
+  creci        String?       @db.VarChar(255)
+  isAdmin      Boolean       @default(false)
+  userId       Int           @unique
+  User         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Appointments Appointment[]
+  Contracts    Contract[]
+  RealEstates  RealEstate[]
+}
+
+model Owner {
+  id          Int          @id @default(autoincrement())
+  street      String       @db.VarChar(255)
+  number      String       @db.VarChar(255)
+  complement  String?      @db.VarChar(255)
+  district    String       @db.VarChar(255)
+  zipCode     String       @db.VarChar(255)
+  phone       String       @db.VarChar(255)
+  city        String       @db.VarChar(255)
+  state       String       @db.VarChar(255)
+  cpf         String       @unique @db.VarChar(255)
+  userId      Int          @unique
+  User        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  RealEstates RealEstate[]
+}
+
+model Client {
+  id           Int           @id @default(autoincrement())
+  street       String        @db.VarChar(255)
+  number       String        @db.VarChar(255)
+  complement   String?       @db.VarChar(255)
+  district     String        @db.VarChar(255)
+  zipCode      String        @db.VarChar(255)
+  phone        String        @db.VarChar(255)
+  city         String        @db.VarChar(255)
+  state        String        @db.VarChar(255)
+  cpf          String        @unique @db.VarChar(255)
+  userId       Int           @unique
+  User         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Appointments Appointment[]
+  Contracts    Contract[]
+}
+
+enum RealEstateType {
+  HOUSE
+  APARTMENT
+}
+
+model RealEstate {
+  id           Int            @id @default(autoincrement())
+  street       String         @db.VarChar(255)
+  number       String         @db.VarChar(255)
+  complement   String?        @db.VarChar(255)
+  district     String         @db.VarChar(255)
+  zipCode      String         @db.VarChar(255)
+  city         String         @db.VarChar(255)
+  state        String         @db.VarChar(255)
+  builtArea    Decimal        @db.Decimal(10, 2)
+  totalArea    Decimal        @db.Decimal(10, 2)
+  bedrooms     Int            @db.Integer()
+  bathrooms    Int            @db.Integer()
+  livingRooms  Int            @db.Integer()
+  kitchens     Int            @db.Integer()
+  garage       Boolean        @default(false)
+  type         RealEstateType @default(HOUSE)
+  description  String         @db.VarChar(255)
+  salePrice    Decimal?       @db.Decimal(10, 2)
+  rentPrice    Decimal?       @db.Decimal(10, 2)
+  status       Boolean        @default(false)
+  registration String         @unique @db.VarChar(255)
+  images       String[]
+  ownerId      Int
+  Owner        Owner          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  employeeId   Int
+  Employee     Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Appointments Appointment[]
+  Contract     Contract?
+}
+
+model Appointment {
+  id            Int        @id @default(autoincrement())
+  date          DateTime   @default(now())
+  observation   String?    @db.VarChar(255)
+  visitDate     DateTime? // Data da visita agendada
+  visitApproved Boolean? // Se a visita foi aprovada pelo funcionário
+  clientId      Int
+  Client        Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  estateId      Int
+  RealEstate    RealEstate @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  employeeId    Int
+  Employee      Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model Contract {
+  id            Int        @id @default(autoincrement())
+  contractType  String     @db.VarChar(255)
+  formOfPayment String     @db.VarChar(255)
+  date          DateTime   @default(now())
+  finalValue    Decimal    @db.Decimal(10, 2)
+  commission    Decimal?   @db.Decimal(10, 2)
+  employeeId    Int
+  Employee      Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  estateId      Int        @unique
+  RealEstate    RealEstate @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  clientId      Int
+  Client        Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
