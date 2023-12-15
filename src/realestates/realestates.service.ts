@@ -5,49 +5,47 @@ import { PrismaClient, RealEstate } from '@prisma/client';
 export class RealestatesService {
   constructor(private prisma: PrismaClient) {}
 
-  async create(
-    data: any,
-    ownerId: number,
-    employeeId: number,
-  ): Promise<RealEstate> {
-    const existingOwner = await this.prisma.owner.findUnique({
-      where: { id: ownerId },
+  async create(data: any): Promise<RealEstate> {
+    const { userId, clientUserId, ...realEstateData } = data;
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: userId },
     });
 
-    const existingEmployee = await this.prisma.employee.findUnique({
-      where: { id: employeeId },
+    const client = await this.prisma.user.findUnique({
+      where: { id: clientUserId },
     });
 
-    if (existingOwner && existingEmployee) {
-      const existingRealEstate = await this.prisma.realEstate.findUnique({
-        where: { registration: data.registration },
-      });
-
-      if (existingRealEstate) {
-        throw new NotFoundException(
-          'RealEstate with this registration already exists.',
-        );
-      }
-
-      const createdRealEstate = await this.prisma.realEstate.create({
-        data: {
-          ...data,
-          ownerId: ownerId,
-          employeeId: employeeId,
-        },
-      });
-
-      return createdRealEstate;
-    } else {
-      throw new NotFoundException('Owner or Employee not found.');
+    if (!creator || !client) {
+      throw new NotFoundException('User not found.');
     }
+
+    const existingRealEstate = await this.prisma.realEstate.findUnique({
+      where: { registration: realEstateData.registration },
+    });
+
+    if (existingRealEstate) {
+      throw new NotFoundException(
+        'RealEstate with this registration already exists.',
+      );
+    }
+
+    const createdRealEstate = await this.prisma.realEstate.create({
+      data: {
+        ...realEstateData,
+        employee: { connect: { id: userId } },
+        client: { connect: { id: clientUserId } },
+      },
+    });
+
+    return createdRealEstate;
   }
 
   async findAll(): Promise<RealEstate[]> {
     const foundAllRealEstate = await this.prisma.realEstate.findMany({
       include: {
-        Owner: true,
-        Employee: true,
+        employee: true,
+        client: true,
       },
     });
     return foundAllRealEstate;
@@ -57,8 +55,8 @@ export class RealestatesService {
     const foundOneRealEstate = await this.prisma.realEstate.findUnique({
       where: { id },
       include: {
-        Owner: true,
-        Employee: true,
+        employee: true,
+        client: true,
       },
     });
     return foundOneRealEstate;

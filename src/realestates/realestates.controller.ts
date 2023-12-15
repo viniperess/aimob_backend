@@ -6,23 +6,19 @@ import {
   Put,
   Param,
   Delete,
-  Request,
-  BadRequestException,
 } from '@nestjs/common';
 import { RealestatesService } from './realestates.service';
 import { RealEstate } from '@prisma/client';
+import { IsPublic } from 'src/auth/decorators/is-public.decorator';
 
 @Controller('realestates')
 export class RealestatesController {
   constructor(private readonly realestatesService: RealestatesService) {}
 
+  @IsPublic()
   @Post()
   create(@Body() realEstate: RealEstate) {
-    return this.realestatesService.create(
-      realEstate,
-      realEstate.ownerId,
-      realEstate.employeeId,
-    );
+    return this.realestatesService.create(realEstate);
   }
 
   @Get()
