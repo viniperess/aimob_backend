@@ -7,9 +7,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { EmployeesModule } from './employees/employees.module';
-import { OwnersModule } from './owners/owners.module';
-import { ClientsModule } from './clients/clients.module';
 import { RealestatesModule } from './realestates/realestates.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { ContractsModule } from './contracts/contracts.module';
@@ -23,9 +20,6 @@ import { ContractsModule } from './contracts/contracts.module';
     PrismaModule,
     AuthModule,
     UsersModule,
-    EmployeesModule,
-    OwnersModule,
-    ClientsModule,
     RealestatesModule,
     AppointmentsModule,
     ContractsModule,
