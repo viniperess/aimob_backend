@@ -5,18 +5,31 @@ import { Contract, PrismaClient } from '@prisma/client';
 export class ContractsService {
   constructor(private prisma: PrismaClient) {}
 
-  async create(
-    data: any,
-    employeeId: number,
-    estateId?: number,
-    clientId?: number,
-  ) {
+  async create(data: any) {
+    const { userId, clientUserId, estateId, ...contractsData } = data;
+
+    const creator = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const client = await this.prisma.user.findUnique({
+      where: { id: clientUserId },
+    });
+
+    console.log('Estate ID:', estateId);
+    const existingRealEstate = await this.prisma.realEstate.findUnique({
+      where: { id: Number(estateId) },
+    });
+    if (!creator || !client || !estateId) {
+      throw new NotFoundException('User or Real Estate not found.');
+    }
+
     const createdContract = await this.prisma.contract.create({
       data: {
-        ...data,
-        clientId: clientId,
-        employeeId: employeeId,
-        estateId: estateId,
+        ...contractsData,
+        employee: { connect: { id: userId } },
+        client: { connect: { id: clientUserId } },
+        realEstate: { connect: { id: estateId } },
       },
     });
 
@@ -26,9 +39,9 @@ export class ContractsService {
   async findAll(): Promise<Contract[]> {
     const foundAllContract = await this.prisma.contract.findMany({
       include: {
-        Client: true,
-        Employee: true,
-        RealEstate: true,
+        employee: true,
+        client: true,
+        realEstate: true,
       },
     });
     return foundAllContract;
@@ -38,9 +51,9 @@ export class ContractsService {
     const foundOneContract = await this.prisma.contract.findUnique({
       where: { id },
       include: {
-        Client: true,
-        Employee: true,
-        RealEstate: true,
+        employee: true,
+        client: true,
+        realEstate: true,
       },
     });
     return foundOneContract;

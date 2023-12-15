@@ -6,25 +6,17 @@ import {
   Put,
   Param,
   Delete,
-  UseGuards,
 } from '@nestjs/common';
 import { ContractsService } from './contracts.service';
 import { Contract } from '@prisma/client';
-import { IsPublic } from 'src/auth/decorators/is-public.decorator';
 
 @Controller('contracts')
 export class ContractsController {
   constructor(private readonly contractsService: ContractsService) {}
 
-  @IsPublic()
   @Post()
   create(@Body() contract: Contract) {
-    return this.contractsService.create(
-      contract,
-      contract.clientId,
-      contract.employeeId,
-      contract.estateId,
-    );
+    return this.contractsService.create(contract);
   }
 
   @Get()
