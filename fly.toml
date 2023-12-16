@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for aimob on 2023-12-16T19:35:07-03:00
+# fly.toml app configuration file generated for aimob on 2023-12-16T19:49:40-03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
 app = "aimob"
-primary_region = "gig"
+primary_region = "gru"
 
 [build]
 
