@@ -20,7 +20,7 @@ export class ContractsService {
     const existingRealEstate = await this.prisma.realEstate.findUnique({
       where: { id: Number(estateId) },
     });
-    if (!creator || !client || !estateId) {
+    if (!creator || !client || !existingRealEstate) {
       throw new NotFoundException('User or Real Estate not found.');
     }
 
