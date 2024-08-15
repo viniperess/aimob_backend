@@ -1,6 +1,4 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-// import { UsersService } from 'src/users/users.service';
-// import { User } from 'src/users/entities/user.entity';
 import { PrismaClient } from '@prisma/client';
 import { UserPayload } from './models/UserPayload';
 import { UserToken } from './models/UserToken';
@@ -13,20 +11,6 @@ export class AuthService {
     private readonly prisma: PrismaClient,
     private readonly jwtService: JwtService,
   ) {}
-
-  // login(user: User): UserToken {
-  //   const payload: UserPayload = {
-  //     sub: user._id.toString(),
-  //     user: user.user,
-  //   };
-
-  //   const jwtToken = this.jwtService.sign(payload);
-  //   const username = this.User.user;
-
-  //   return {
-  //     access_token: jwtToken,
-  //   };
-  // }
 
   async login(userDto: { user: string; password: string }): Promise<UserToken> {
     const validatedUser = await this.validateUser(
