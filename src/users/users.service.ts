@@ -7,20 +7,20 @@ export class UsersService {
   constructor(private prisma: PrismaClient) {}
 
   async create(data: any): Promise<User> {
-    // const existEmail = await this.prisma.user.findUnique({
-    //   where: { email: data.email },
-    // });
+    const existEmail = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
 
-    // const existUser = await this.prisma.user.findUnique({
-    //   where: { user: data.user },
-    // });
+    const existUser = await this.prisma.user.findUnique({
+      where: { user: data.user },
+    });
 
-    // if (existEmail) {
-    //   throw new Error('Email already exists.');
-    // }
-    // if (existUser) {
-    //   throw new Error('User already exists.');
-    // }
+    if (existEmail) {
+      throw new Error('Email already exists.');
+    }
+    if (existUser) {
+      throw new Error('User already exists.');
+    }
 
     try {
       const hashedPassword = await bcrypt.hash(data.password, 10);

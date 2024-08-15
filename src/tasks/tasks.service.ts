@@ -8,7 +8,6 @@ export class TasksService {
   async create(data: any) {
     const { estateId, appointmentId, contactId } = data;
 
-    // Busca o userId baseado no estateId, se fornecido
     let userId = null;
 
     if (estateId) {
@@ -20,7 +19,6 @@ export class TasksService {
       }
     }
 
-    // Verifica se já existe uma Task com o mesmo appointmentId, contactId e estateId para evitar duplicação
     const existingTask = await this.prisma.task.findFirst({
       where: {
         appointmentId,
@@ -30,11 +28,9 @@ export class TasksService {
     });
 
     if (existingTask) {
-      // Se a task já existe, retorne a existente em vez de criar uma nova
       return existingTask;
     }
 
-    // Cria uma nova task se não houver uma duplicata
     const createTask = await this.prisma.task.create({
       data: {
         ...data,
