@@ -3,16 +3,16 @@ import {
   Get,
   Post,
   Body,
-  Put,
   Param,
   Delete,
   UseGuards,
   Request,
+  Patch,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from '@prisma/client';
-import { IsPublic } from 'src/auth/decorators/is-public.decorator';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { IsPublic } from '../auth/decorators/is-public.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -42,7 +42,7 @@ export class UsersController {
     return this.usersService.findOne(+id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   update(@Param('id') id: number, @Body() user: User): Promise<User | null> {
     return this.usersService.update(+id, user);
   }

@@ -7,22 +7,37 @@ export class UsersService {
   constructor(private prisma: PrismaClient) {}
 
   async create(data: any): Promise<User> {
-    const existEmail = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
+    // const existEmail = await this.prisma.user.findUnique({
+    //   where: { email: data.email },
+    // });
 
-    if (existEmail) {
-      throw new Error('Email already exists.');
+    // const existUser = await this.prisma.user.findUnique({
+    //   where: { user: data.user },
+    // });
+
+    // if (existEmail) {
+    //   throw new Error('Email already exists.');
+    // }
+    // if (existUser) {
+    //   throw new Error('User already exists.');
+    // }
+
+    try {
+      const hashedPassword = await bcrypt.hash(data.password, 10);
+      if (hashedPassword === data.password) {
+        throw new Error('Password hashing failed');
+      }
+
+      const user = await this.prisma.user.create({
+        data: {
+          ...data,
+          password: hashedPassword,
+        },
+      });
+      return user;
+    } catch (error) {
+      throw new Error('Error during password hashing');
     }
-
-    const hashePassword = await bcrypt.hash(data.password, 10);
-    const users = await this.prisma.user.create({
-      data: {
-        ...data,
-        password: hashePassword,
-      },
-    });
-    return users;
   }
 
   async findAll(): Promise<User[]> {
@@ -45,6 +60,9 @@ export class UsersService {
   }
 
   async update(id: number, data: Partial<User>): Promise<User> {
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data,
