@@ -9,7 +9,10 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RealestatesModule } from './realestates/realestates.module';
 import { AppointmentsModule } from './appointments/appointments.module';
-import { ContractsModule } from './contracts/contracts.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { TasksModule } from './tasks/tasks.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ForgotPasswordModule } from './forgot-password/forgot-password.module';
 
 @Module({
   imports: [
@@ -22,7 +25,10 @@ import { ContractsModule } from './contracts/contracts.module';
     UsersModule,
     RealestatesModule,
     AppointmentsModule,
-    ContractsModule,
+    ContactsModule,
+    TasksModule,
+    NotificationsModule,
+    ForgotPasswordModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
