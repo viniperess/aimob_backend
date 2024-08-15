@@ -5,12 +5,10 @@ import {
   Body,
   Param,
   Delete,
-  Req,
   Patch,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from '@prisma/client';
-import { AuthRequest } from 'src/auth/models/AuthRequest';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
 
 @Controller('appointments')
@@ -19,11 +17,8 @@ export class AppointmentsController {
 
   @IsPublic()
   @Post('create-by-corrector')
-  createByCorretor(
-    @Body() appointment: Appointment,
-    @Req() request: AuthRequest,
-  ) {
-    return this.appointmentsService.create(appointment, request);
+  createByCorretor(@Body() appointment: Appointment) {
+    return this.appointmentsService.create(appointment);
   }
 
   @IsPublic()
