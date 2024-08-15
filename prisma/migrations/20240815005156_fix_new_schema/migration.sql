@@ -9,6 +9,8 @@ CREATE TABLE "User" (
     "city" TEXT,
     "phone" TEXT,
     "creci" TEXT,
+    "resetCode" TEXT,
+    "resetCodeExpires" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -66,6 +68,7 @@ CREATE TABLE "Task" (
     "contactId" INTEGER,
     "description" TEXT,
     "status" TEXT,
+    "estateId" INTEGER,
 
     CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
 );
@@ -73,9 +76,7 @@ CREATE TABLE "Task" (
 -- CreateTable
 CREATE TABLE "Notification" (
     "id" SERIAL NOT NULL,
-    "type" TEXT NOT NULL,
-    "isAccepted" BOOLEAN NOT NULL,
-    "contactId" INTEGER,
+    "taskId" INTEGER,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
@@ -127,4 +128,7 @@ ALTER TABLE "Task" ADD CONSTRAINT "Task_appointmentId_fkey" FOREIGN KEY ("appoin
 ALTER TABLE "Task" ADD CONSTRAINT "Task_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_contactId_fkey" FOREIGN KEY ("contactId") REFERENCES "Contact"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Task" ADD CONSTRAINT "Task_estateId_fkey" FOREIGN KEY ("estateId") REFERENCES "RealEstate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE SET NULL ON UPDATE CASCADE;
