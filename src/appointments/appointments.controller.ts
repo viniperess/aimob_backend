@@ -3,19 +3,32 @@ import {
   Get,
   Post,
   Body,
-  Put,
   Param,
   Delete,
+  Req,
+  Patch,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from '@prisma/client';
+import { AuthRequest } from 'src/auth/models/AuthRequest';
+import { IsPublic } from 'src/auth/decorators/is-public.decorator';
 
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
-  @Post()
-  create(@Body() appointment: Appointment) {
+  @IsPublic()
+  @Post('create-by-corrector')
+  createByCorretor(
+    @Body() appointment: Appointment,
+    @Req() request: AuthRequest,
+  ) {
+    return this.appointmentsService.create(appointment, request);
+  }
+
+  @IsPublic()
+  @Post('create-by-contact')
+  createByContact(@Body() appointment: Appointment) {
     return this.appointmentsService.create(appointment);
   }
 
@@ -29,7 +42,7 @@ export class AppointmentsController {
     return this.appointmentsService.findOne(+id);
   }
 
-  @Put(':id')
+  @Patch(':id')
   update(
     @Param('id') id: number,
     @Body() appointment: Appointment,

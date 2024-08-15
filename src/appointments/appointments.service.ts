@@ -1,27 +1,76 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Appointment, PrismaClient } from '@prisma/client';
+import { RealestatesService } from 'src/realestates/realestates.service';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaClient) {}
+  constructor(
+    private prisma: PrismaClient,
+    private readonly realEstatesService: RealestatesService,
+  ) {}
 
   async create(data: any) {
-    const { userId, clientUserId, estateId, ...appointmentsData } = data;
+    const {
+      estateId,
+      contactId,
+      contactName,
+      contactEmail,
+      contactPhone,
+      taskStatus,
+      taskDescription,
+      ...appointmentsData
+    } = data;
 
-    const creator = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    if (!contactId && (!contactEmail || !contactName)) {
+      throw new BadRequestException(
+        'Contact information is required if no contact ID is provided',
+      );
+    }
 
-    const client = await this.prisma.user.findUnique({
-      where: { id: clientUserId },
-    });
+    const realEstate = await this.realEstatesService.findOne(estateId);
+    if (!realEstate) {
+      throw new NotFoundException('Real estate not found');
+    }
 
-    const existingRealEstate = await this.prisma.realEstate.findUnique({
-      where: { id: estateId },
-    });
+    const userId = realEstate.userId;
 
-    if (!creator || !client || !existingRealEstate) {
-      throw new NotFoundException('User or Real Estate not found.');
+    if (!userId) {
+      throw new Error('UserId is null or undefined');
+    }
+
+    let contact;
+
+    if (contactId) {
+      contact = await this.prisma.contact.findUnique({
+        where: { id: contactId },
+      });
+
+      if (!contact) {
+        throw new NotFoundException('Contact not found');
+      }
+    } else {
+      contact = await this.prisma.contact.findUnique({
+        where: { email: contactEmail },
+      });
+
+      if (!contact) {
+        contact = await this.prisma.contact.create({
+          data: {
+            name: contactName,
+            email: contactEmail,
+            phone: contactPhone,
+          },
+        });
+      } else if (contact.email === contactEmail) {
+        contact = await this.prisma.contact.update({
+          where: { email: contactEmail },
+          data: { name: contactName, phone: contactPhone },
+        });
+      }
     }
 
     const existingAppointment = await this.prisma.appointment.findFirst({
@@ -32,23 +81,53 @@ export class AppointmentsService {
       throw new NotFoundException('Appointment with this date not available');
     }
 
-    const createdAppointment = await this.prisma.appointment.create({
+    const createTask = await this.prisma.task.create({
       data: {
-        ...appointmentsData,
-        employee: { connect: { id: userId } },
-        client: { connect: { id: clientUserId } },
-        realEstate: { connect: { id: estateId } },
+        status: taskStatus,
+        description: taskDescription,
+        userId: userId,
+        contactId: contact.id,
+        estateId: estateId,
       },
     });
 
+    const createdAppointment = await this.prisma.appointment.create({
+      data: {
+        ...appointmentsData,
+        userId: userId,
+        estateId: realEstate.id,
+        contactId: contact.id,
+        visitApproved: false,
+      },
+    });
+
+    const updateTask = await this.prisma.task.update({
+      where: { id: createTask.id },
+      data: {
+        appointmentId: createdAppointment.id,
+        status: 'Aguardando Visita',
+      },
+    });
+
+    await this.prisma.notification.create({
+      data: {
+        taskId: createTask.id,
+      },
+    });
+
+    console.log(
+      'Created appointment:',
+      createdAppointment,
+      createTask,
+      updateTask,
+    );
     return createdAppointment;
   }
 
   async findAll(): Promise<Appointment[]> {
     const foundAllAppointment = await this.prisma.appointment.findMany({
       include: {
-        employee: true,
-        client: true,
+        contact: true,
         realEstate: true,
       },
     });
@@ -59,8 +138,7 @@ export class AppointmentsService {
     const foundOneAppointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {
-        employee: true,
-        client: true,
+        contact: true,
         realEstate: true,
       },
     });
