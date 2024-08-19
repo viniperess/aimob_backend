@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { applyIsOptionalDecorator } from '@nestjs/mapped-types';
 import { Appointment, PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import { RealestatesService } from 'src/realestates/realestates.service';
