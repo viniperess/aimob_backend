@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { applyIsOptionalDecorator } from '@nestjs/mapped-types';
 import { Appointment, PrismaClient } from '@prisma/client';
+import axios from 'axios';
 import { RealestatesService } from 'src/realestates/realestates.service';
 
 @Injectable()
@@ -160,7 +161,7 @@ export class AppointmentsService {
 
       if (appointment && appointment.contact && appointment.contact.phone) {
         const message = `Seu Agendamento foi Aprovado! Data: ${new Date(
-          applyIsOptionalDecorator.visitDate,
+          appointment.visitDate,
         ).toLocaleDateString()}`;
         await this.sendSms(appointment.contact.phone, message);
       }
