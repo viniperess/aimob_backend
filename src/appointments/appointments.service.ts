@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { applyIsOptionalDecorator } from '@nestjs/mapped-types';
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 
@@ -150,7 +151,39 @@ export class AppointmentsService {
       where: { id },
       data,
     });
+
+    if (data.visitApproved) {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id },
+        include: { contact: true },
+      });
+
+      if (appointment && appointment.contact && appointment.contact.phone) {
+        const message = `Seu Agendamento foi Aprovado! Data: ${new Date(
+          applyIsOptionalDecorator.visitDate,
+        ).toLocaleDateString()}`;
+        await this.sendSms(appointment.contact.phone, message);
+      }
+    }
     return updatedAppointment;
+  }
+
+  async sendSms(phone: string, message: string) {
+    try {
+      const response = await axios.post('https://textbelt.com/text', {
+        phone: phone,
+        message: message,
+        key: 'textbelt',
+      });
+
+      if (response.data.success) {
+        console.log('SMS sent successfully', response.data);
+      } else {
+        console.error('Failed to send SMS', response.data);
+      }
+    } catch (error) {
+      console.error('Failed to send SMS', error);
+    }
   }
 
   async remove(id: number) {
