@@ -45,7 +45,8 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.2.0"
+    "rxjs": "^7.2.0",
+    "twilio": "^5.2.2"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.4.11",

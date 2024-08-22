@@ -4,15 +4,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Appointment, PrismaClient } from '@prisma/client';
-import axios from 'axios';
 import { RealestatesService } from 'src/realestates/realestates.service';
+import twilio from 'twilio';
 
 @Injectable()
 export class AppointmentsService {
+  private client: any;
   constructor(
     private prisma: PrismaClient,
     private readonly realEstatesService: RealestatesService,
-  ) {}
+  ) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    this.client = twilio(accountSid, authToken);
+  }
 
   async create(data: any) {
     const {
@@ -170,17 +175,13 @@ export class AppointmentsService {
 
   async sendSms(phone: string, message: string) {
     try {
-      const response = await axios.post('https://textbelt.com/text', {
-        phone: phone,
-        message: message,
-        key: 'textbelt',
+      const response = await this.client.messages.create({
+        body: message,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: phone,
       });
 
-      if (response.data.success) {
-        console.log('SMS sent successfully', response.data);
-      } else {
-        console.error('Failed to send SMS', response.data);
-      }
+      console.log('SMS enviado com sucesso', response.sid);
     } catch (error) {
       console.error('Failed to send SMS', error);
     }
