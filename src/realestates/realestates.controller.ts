@@ -30,16 +30,16 @@ export class RealestatesController {
   findAll(): Promise<RealEstate[]> {
     return this.realestatesService.findAll();
   }
-  @IsPublic()
-  @Get(':id')
-  findOne(@Param('id') id: number): Promise<RealEstate | null> {
-    return this.realestatesService.findOne(+id);
-  }
 
   @IsPublic()
   @Get('search')
   searchProjects(@Query('type') type: string): Promise<RealEstate[] | null> {
     return this.realestatesService.searchRealEstate(type);
+  }
+  @IsPublic()
+  @Get(':id')
+  findOne(@Param('id') id: number): Promise<RealEstate | null> {
+    return this.realestatesService.findOne(+id);
   }
 
   @Patch(':id')
