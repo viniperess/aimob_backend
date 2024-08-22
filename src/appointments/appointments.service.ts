@@ -163,19 +163,25 @@ export class AppointmentsService {
       where: { id },
       include: { contact: true },
     });
+
     if (appointment && appointment.contact && appointment.contact.phone) {
-      if (data.visitApproved) {
-        const message = `Seu Agendamento foi Aprovado!`;
+      let message: string;
+
+      if (data.visitApproved === true) {
+        message = `Seu Agendamento foi Aprovado!`;
+        console.log('Enviando SMS de aprovação...');
         await this.sendSms(
           appointment.contact.phone,
           message,
           appointment.visitDate,
         );
       } else if (data.visitApproved === false) {
-        const message = `Seu Agendamento foi Recusado!`;
+        message = `Seu Agendamento foi Recusado!`;
+        console.log('Enviando SMS de recusa...');
         await this.sendSms(appointment.contact.phone, message, null);
       }
     }
+
     return updatedAppointment;
   }
 
