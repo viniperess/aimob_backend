@@ -159,33 +159,36 @@ export class AppointmentsService {
       data,
     });
 
-    if (data.visitApproved) {
-      const appointment = await this.prisma.appointment.findUnique({
-        where: { id },
-        include: { contact: true },
-      });
-
-      if (appointment && appointment.contact && appointment.contact.phone) {
-        const message = `Seu Agendamento foi Aprovado! Data: ${new Date(
-          appointment.visitDate,
-        ).toLocaleDateString()}`;
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id },
+      include: { contact: true },
+    });
+    if (appointment && appointment.contact && appointment.contact.phone) {
+      if (data.visitApproved) {
+        const message = `Seu Agendamento foi Aprovado!`;
         await this.sendSms(
           appointment.contact.phone,
           message,
           appointment.visitDate,
         );
+      } else if (data.visitApproved === false) {
+        const message = `Seu Agendamento foi Recusado!`;
+        await this.sendSms(appointment.contact.phone, message, null);
       }
     }
     return updatedAppointment;
   }
 
-  async sendSms(phone: string, message: string, visitDate: Date) {
+  async sendSms(phone: string, message: string, visitDate: Date | null) {
     try {
-      const formattedDate = format(visitDate, "dd/MM/yyyy 'às' HH:mm", {
-        locale: ptBR,
-      });
+      let fullMessage = message;
+      if (visitDate) {
+        const formattedDate = format(visitDate, "dd/MM/yyyy 'às' HH:mm", {
+          locale: ptBR,
+        });
 
-      const fullMessage = `${message} - Data e Hora: ${formattedDate}`;
+        fullMessage += `${message} - Data e Hora: ${formattedDate}`;
+      }
       const response = await this.client.messages.create({
         body: fullMessage,
         from: process.env.TWILIO_PHONE_NUMBER,
