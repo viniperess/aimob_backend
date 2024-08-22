@@ -6,6 +6,8 @@ import {
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import twilio from 'twilio';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 @Injectable()
 export class AppointmentsService {
@@ -167,16 +169,25 @@ export class AppointmentsService {
         const message = `Seu Agendamento foi Aprovado! Data: ${new Date(
           appointment.visitDate,
         ).toLocaleDateString()}`;
-        await this.sendSms(appointment.contact.phone, message);
+        await this.sendSms(
+          appointment.contact.phone,
+          message,
+          appointment.visitDate,
+        );
       }
     }
     return updatedAppointment;
   }
 
-  async sendSms(phone: string, message: string) {
+  async sendSms(phone: string, message: string, visitDate: Date) {
     try {
+      const formattedDate = format(visitDate, "dd/MM/yyyy 'às' HH:mm", {
+        locale: ptBR,
+      });
+
+      const fullMessage = `${message} - Data e Hora: ${formattedDate}`;
       const response = await this.client.messages.create({
-        body: message,
+        body: fullMessage,
         from: process.env.TWILIO_PHONE_NUMBER,
         to: phone,
       });
