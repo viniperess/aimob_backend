@@ -44,16 +44,23 @@ export class RealestatesService {
   }
 
   async searchRealEstate(type: string): Promise<RealEstate[]> {
-    const searchProjects = await this.prisma.realEstate.findMany({
-      where: {
-        type: {
-          contains: type,
-          mode: 'insensitive',
+    try {
+      console.log('Tipo recebido para pesquisa:', type);
+      const searchResults = await this.prisma.realEstate.findMany({
+        where: {
+          type: {
+            contains: type,
+            mode: 'insensitive',
+          },
         },
-      },
-    });
-    return searchProjects;
+      });
+      return searchResults;
+    } catch (error) {
+      console.error('Erro ao buscar imóveis:', error);
+      throw new Error('Erro ao buscar imóveis');
+    }
   }
+
   async update(id: number, data: Partial<RealEstate>): Promise<RealEstate> {
     const updatedRealEstate = await this.prisma.realEstate.update({
       where: { id },
