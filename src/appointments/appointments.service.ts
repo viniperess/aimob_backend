@@ -193,7 +193,7 @@ export class AppointmentsService {
           locale: ptBR,
         });
 
-        fullMessage += `${message} - Data e Hora: ${formattedDate}`;
+        fullMessage += ` - Data e Hora: ${formattedDate}`;
       }
       const response = await this.client.messages.create({
         body: fullMessage,
