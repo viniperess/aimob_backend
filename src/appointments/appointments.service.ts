@@ -33,9 +33,11 @@ export class AppointmentsService {
       visitDate,
       ...appointmentsData
     } = data;
+    if (!visitDate) {
+      throw new BadRequestException('visitDate is required');
+    }
 
     if (
-      !visitDate ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[\+\-]\d{2}:\d{2})?$/.test(
         visitDate,
       )
@@ -117,6 +119,7 @@ export class AppointmentsService {
         userId: userId,
         estateId: realEstate.id,
         contactId: contact.id,
+        visitDate: new Date(visitDate),
         visitApproved: false,
       },
     });
