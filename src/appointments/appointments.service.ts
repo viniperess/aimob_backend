@@ -36,17 +36,6 @@ export class AppointmentsService {
     if (!visitDate) {
       throw new BadRequestException('visitDate is required');
     }
-
-    if (
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[\+\-]\d{2}:\d{2})?$/.test(
-        visitDate,
-      )
-    ) {
-      throw new BadRequestException(
-        'Invalid date format. Expected ISO-8601 format',
-      );
-    }
-
     if (!contactId && (!contactEmail || !contactName)) {
       throw new BadRequestException(
         'Contact information is required if no contact ID is provided',
@@ -119,7 +108,7 @@ export class AppointmentsService {
         userId: userId,
         estateId: realEstate.id,
         contactId: contact.id,
-        visitDate: new Date(visitDate),
+        visitDate: visitDate,
         visitApproved: false,
       },
     });
