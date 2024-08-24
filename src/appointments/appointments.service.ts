@@ -24,6 +24,7 @@ export class AppointmentsService {
   async create(data: any) {
     const {
       estateId,
+      visitDate,
       contactId,
       contactName,
       contactEmail,
@@ -106,6 +107,7 @@ export class AppointmentsService {
         estateId: realEstate.id,
         contactId: contact.id,
         visitApproved: false,
+        visitDate: new Date(visitDate),
       },
     });
 
