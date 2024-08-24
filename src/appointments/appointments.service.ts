@@ -24,15 +24,26 @@ export class AppointmentsService {
   async create(data: any) {
     const {
       estateId,
-      visitDate,
       contactId,
       contactName,
       contactEmail,
       contactPhone,
       taskStatus,
       taskDescription,
+      visitDate,
       ...appointmentsData
     } = data;
+
+    if (
+      !visitDate ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[\+\-]\d{2}:\d{2})?$/.test(
+        visitDate,
+      )
+    ) {
+      throw new BadRequestException(
+        'Invalid date format. Expected ISO-8601 format',
+      );
+    }
 
     if (!contactId && (!contactEmail || !contactName)) {
       throw new BadRequestException(
@@ -83,7 +94,7 @@ export class AppointmentsService {
     }
 
     const existingAppointment = await this.prisma.appointment.findFirst({
-      where: { visitDate: data.visitDate },
+      where: { visitDate: new Date(visitDate) },
     });
 
     if (existingAppointment) {
@@ -107,7 +118,6 @@ export class AppointmentsService {
         estateId: realEstate.id,
         contactId: contact.id,
         visitApproved: false,
-        visitDate: new Date(visitDate),
       },
     });
 
