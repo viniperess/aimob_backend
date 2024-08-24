@@ -6,7 +6,7 @@ import {
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import twilio from 'twilio';
-import { format } from 'date-fns';
+import { format, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 @Injectable()
@@ -193,9 +193,17 @@ export class AppointmentsService {
     try {
       let fullMessage = message;
       if (visitDate) {
-        const formattedDate = format(visitDate, "dd/MM/yyyy 'às' HH:mm", {
-          locale: ptBR,
-        });
+        // Subtrai 3 horas da data de visita
+        const adjustedVisitDate = subHours(visitDate, 3);
+
+        // Formata a data ajustada para o formato desejado
+        const formattedDate = format(
+          adjustedVisitDate,
+          "dd/MM/yyyy 'às' HH:mm",
+          {
+            locale: ptBR,
+          },
+        );
 
         fullMessage += ` - Data e Hora: ${formattedDate}`;
       }
