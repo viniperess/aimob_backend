@@ -30,19 +30,20 @@ export class ContactsService {
   async createContactBasic(data: any) {
     const { taskStatus, taskDescription, estateId, ...contactsData } = data;
 
-    const existEmail = await this.prisma.contact.findUnique({
-      where: { email: data.email },
+    let contact = await this.prisma.contact.findUnique({
+      where: { email: contactsData.email },
     });
 
-    if (existEmail) {
-      throw new Error('Email already exists.');
+    if (contact) {
+      contact = await this.prisma.contact.update({
+        where: { email: contactsData.email },
+        data: contactsData,
+      });
+    } else {
+      contact = await this.prisma.contact.create({
+        data: contactsData,
+      });
     }
-
-    const contactBasic = await this.prisma.contact.create({
-      data: {
-        ...contactsData,
-      },
-    });
 
     const realEstate = await this.realEstatesService.findOne(estateId);
     if (!realEstate) {
@@ -60,8 +61,8 @@ export class ContactsService {
         status: taskStatus,
         description: taskDescription,
         userId: userId,
-        contactId: contactBasic.id,
-        estateId: estateId, // Incluindo o estateId na criação da task
+        contactId: contact.id,
+        estateId: estateId,
       },
     });
 
@@ -71,9 +72,9 @@ export class ContactsService {
       },
     });
 
-    console.log(createTask, contactBasic, createNotification);
+    console.log(createTask, contact, createNotification);
 
-    return contactBasic;
+    return contact;
   }
 
   async findAll(): Promise<Contact[]> {
