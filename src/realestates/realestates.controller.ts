@@ -9,6 +9,7 @@ import {
   Req,
   Query,
   UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { RealestatesService } from './realestates.service';
 import { RealEstate } from '@prisma/client';
@@ -22,7 +23,11 @@ export class RealestatesController {
 
   @Post()
   @UseInterceptors(FilesInterceptor('images'))
-  create(@Body() realEstate: RealEstate, @Req() request: AuthRequest) {
+  create(
+    @Body() realEstate: RealEstate,
+    @UploadedFiles() images: Express.Multer.File[],
+    @Req() request: AuthRequest,
+  ) {
     return this.realestatesService.create(realEstate, request);
   }
   @IsPublic()
@@ -43,8 +48,10 @@ export class RealestatesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FilesInterceptor('images'))
   update(
     @Param('id') id: number,
+    @UploadedFiles() images: Express.Multer.File[],
     @Body() realEstate: RealEstate,
   ): Promise<RealEstate> {
     return this.realestatesService.update(+id, realEstate);

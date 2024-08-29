@@ -6,12 +6,24 @@ import { AuthRequest } from 'src/auth/models/AuthRequest';
 export class RealestatesService {
   constructor(private prisma: PrismaClient) {}
 
-  async create(data: any, request: AuthRequest) {
+  async create(
+    data: any,
+    request: AuthRequest,
+    images?: Express.Multer.File[],
+  ) {
     const { ...realEstateData } = data;
     const userId = request.user.id;
     const existingRealEstate = await this.prisma.realEstate.findUnique({
       where: { registration: realEstateData.registration },
     });
+
+    if (images && images.length > 0) {
+      const imageStrings = images.map((image) =>
+        image.buffer.toString('base64'),
+      );
+
+      data.images = [...realEstateData.images, ...imageStrings];
+    }
 
     if (existingRealEstate) {
       throw new NotFoundException(
@@ -61,7 +73,21 @@ export class RealestatesService {
     }
   }
 
-  async update(id: number, data: Partial<RealEstate>): Promise<RealEstate> {
+  async update(
+    id: number,
+    data: Partial<RealEstate>,
+    images?: Express.Multer.File[],
+  ): Promise<RealEstate> {
+    const existingRealEstate = await this.prisma.realEstate.findUnique({
+      where: { id },
+    });
+    if (images && images.length > 0) {
+      const imageStrings = images.map((images) =>
+        images.buffer.toString('base64'),
+      );
+
+      data.images = [...existingRealEstate.images, ...imageStrings];
+    }
     const updatedRealEstate = await this.prisma.realEstate.update({
       where: { id },
       data,
