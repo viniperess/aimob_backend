@@ -73,9 +73,41 @@ export class TasksService {
   }
 
   async remove(id: number) {
+    const task = await this.prisma.task.findFirst({
+      where: { id },
+      include: {
+        contact: true,
+        appointment: true,
+      },
+    });
+    if (!task) {
+      throw new Error('Task not found');
+    }
+    const contactId = task.contact?.id;
+    const appointmentId = task.appointment?.id;
+
     const deleteTask = await this.prisma.task.delete({
       where: { id },
     });
+
+    if (contactId) {
+      const remainingTasks = await this.prisma.task.findMany({
+        where: { contactId },
+      });
+
+      if (remainingTasks.length === 0) {
+        await this.prisma.contact.delete({
+          where: { id: contactId },
+        });
+
+        if (appointmentId) {
+          await this.prisma.appointment.delete({
+            where: { id: appointmentId },
+          });
+        }
+      }
+    }
+
     return deleteTask;
   }
 }
