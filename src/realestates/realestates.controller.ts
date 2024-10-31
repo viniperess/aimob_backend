@@ -7,15 +7,17 @@ import {
   Param,
   Delete,
   Req,
-  Query,
   UseInterceptors,
   UploadedFiles,
+  Query,
+  Res,
 } from '@nestjs/common';
 import { RealestatesService } from './realestates.service';
 import { RealEstate } from '@prisma/client';
 import { AuthRequest } from 'src/auth/models/AuthRequest';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
+import { Response } from 'express';
 
 @Controller('realestates')
 export class RealestatesController {
@@ -26,14 +28,65 @@ export class RealestatesController {
   create(
     @Body() realEstate: RealEstate,
     @UploadedFiles() images: Express.Multer.File[],
-    @Req() request: AuthRequest,
+    @Req()
+    request: AuthRequest,
   ) {
-    return this.realestatesService.create(realEstate, request);
+    return this.realestatesService.create(realEstate, request, images);
   }
+
+  @Get('report')
+  async getRealEstateReport(
+    @Query()
+    filters: {
+      bedrooms?: string;
+      bathrooms?: string;
+      minPrice?: string;
+      maxPrice?: string;
+      status?: boolean;
+    },
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.realestatesService.generateRealEstateReport(
+      filters,
+    );
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'attachment; filename=relatorio-imoveis.pdf',
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
+  }
+
   @IsPublic()
   @Get()
   findAll(): Promise<RealEstate[]> {
     return this.realestatesService.findAll();
+  }
+
+  @IsPublic()
+  @Get('advance-search')
+  async advanceSearch(
+    @Query()
+    filters: {
+      bedrooms?: string;
+      bathrooms?: string;
+      kitchens?: string;
+      livingRooms?: string;
+      minPrice?: string;
+      maxPrice?: string;
+      type?: string;
+      garage?: string;
+      yard?: string;
+      pool?: string;
+    },
+  ): Promise<RealEstate[]> {
+    console.log('Filtros recebidos:', filters);
+    const results = await this.realestatesService.advanceSearch(filters);
+
+    console.log('Resultado da busca:', results); // Log para verificar o resultado da busca
+    return results;
   }
 
   @IsPublic()
@@ -54,7 +107,7 @@ export class RealestatesController {
     @UploadedFiles() images: Express.Multer.File[],
     @Body() realEstate: RealEstate,
   ): Promise<RealEstate> {
-    return this.realestatesService.update(+id, realEstate);
+    return this.realestatesService.update(+id, realEstate, images);
   }
 
   @Delete(':id')
