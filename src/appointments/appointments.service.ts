@@ -5,9 +5,6 @@ import {
 } from '@nestjs/common';
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
-import twilio from 'twilio';
-import { format, subHours } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 @Injectable()
 export class AppointmentsService {
@@ -15,11 +12,7 @@ export class AppointmentsService {
   constructor(
     private prisma: PrismaClient,
     private readonly realEstatesService: RealestatesService,
-  ) {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    this.client = twilio(accountSid, authToken);
-  }
+  ) {}
 
   async create(data: any) {
     const {
@@ -163,60 +156,7 @@ export class AppointmentsService {
       data,
     });
 
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id },
-      include: { contact: true },
-    });
-
-    if (appointment && appointment.contact && appointment.contact.phone) {
-      let message: string;
-
-      if (data.visitApproved === true) {
-        message = `Seu Agendamento foi Aprovado!`;
-        console.log('Enviando SMS de aprovação...');
-        await this.sendSms(
-          appointment.contact.phone,
-          message,
-          appointment.visitDate,
-        );
-      } else if (data.visitApproved === false) {
-        message = `Seu Agendamento foi Recusado!`;
-        console.log('Enviando SMS de recusa...');
-        await this.sendSms(appointment.contact.phone, message, null);
-      }
-    }
-
     return updatedAppointment;
-  }
-
-  async sendSms(phone: string, message: string, visitDate: Date | null) {
-    try {
-      let fullMessage = message;
-      if (visitDate) {
-        // Subtrai 3 horas da data de visita
-        const adjustedVisitDate = subHours(visitDate, 3);
-
-        // Formata a data ajustada para o formato desejado
-        const formattedDate = format(
-          adjustedVisitDate,
-          "dd/MM/yyyy 'às' HH:mm",
-          {
-            locale: ptBR,
-          },
-        );
-
-        fullMessage += ` - Data e Hora: ${formattedDate}`;
-      }
-      const response = await this.client.messages.create({
-        body: fullMessage,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: phone,
-      });
-
-      console.log('SMS enviado com sucesso', response.sid);
-    } catch (error) {
-      console.error('Failed to send SMS', error);
-    }
   }
 
   async remove(id: number) {
