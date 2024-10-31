@@ -39,14 +39,15 @@ model RealEstate {
   bathrooms    String?
   livingRooms  String?
   kitchens     String?
-  garage       Boolean
+  garage       Boolean      @default(false)
+  yard         Boolean       @default(false)
+  pool         Boolean       @default(false)
   type         String
   description  String
-  salePrice    String?
-  rentPrice    String?
-  status       Boolean       @default(false)
+  salePrice    Float?
+  status       Boolean       @default(true)
   registration String        @unique
-  images       String[]
+  images       String[]   
   userId       Int
   user         User          @relation(fields: [userId], references: [id])
   appointments Appointment[]
@@ -96,6 +97,7 @@ model Contact {
   name         String
   email        String        @unique
   phone        String
+  createdAt    DateTime      @default(now())
   appointments Appointment[]
   tasks        Task[]
 }
