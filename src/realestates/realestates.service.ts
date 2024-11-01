@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient, RealEstate } from '@prisma/client';
 import { AuthRequest } from 'src/auth/models/AuthRequest';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 import { S3 } from 'aws-sdk';
 
 @Injectable()
@@ -294,70 +294,73 @@ export class RealestatesService {
     return this.generatePdfReport(realEstateReport);
   }
   async generatePdfReport(realEstates: RealEstate[]): Promise<Buffer> {
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 50, left: 50, right: 50, bottom: 50 },
-    });
-    const buffers: Buffer[] = [];
-    doc.on('data', buffers.push.bind(buffers));
-    doc.on('end', () => {
-      const pdfBuffer = Buffer.concat(buffers);
-      return pdfBuffer;
-    });
-
-    doc
-      .fontSize(20)
-      .text('Relatório de Imóveis', { align: 'center' })
-      .image(
-        '../my-frontend-app/src/assets/images/logosemfundo_azul.png',
-        480,
-        20,
-        { width: 80 },
-      )
-      .moveDown();
-
-    doc
-      .fontSize(12)
-      .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
-        align: 'right',
-      })
-      .moveDown();
-
-    doc.fontSize(12).font('Helvetica');
-
-    realEstates.forEach((realEstate) => {
-      doc
-        .fillColor('#000000')
-        .text(
-          `Endereço: ${realEstate.street}, ${realEstate.number}, ${realEstate.city} - ${realEstate.state}`,
-          { width: 500 },
-        )
-        .text(`Registro: ${realEstate.registration || 'N/A'}`, { width: 500 })
-        .text(`Área Construída: ${realEstate.builtArea || 'N/A'} m²`, {
-          width: 500,
-        })
-        .text(`Área Total: ${realEstate.totalArea || 'N/A'} m²`, { width: 500 })
-        .text(`Quartos: ${realEstate.bedrooms || 'N/A'}`, { width: 500 })
-        .text(`Banheiros: ${realEstate.bathrooms || 'N/A'}`, { width: 500 })
-        .text(`Garagem: ${realEstate.garage ? 'Sim' : 'Não'}`, { width: 500 })
-        .text(
-          `Preço de Venda: ${
-            realEstate.salePrice ? `R$ ${realEstate.salePrice}` : 'N/A'
-          }`,
-          { width: 500 },
-        )
-        .text(`Status: ${realEstate.status ? 'Disponível' : 'Indisponível'}`, {
-          width: 500,
-        })
-        .moveDown(1);
-
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
-    });
-
-    doc.end();
-
     return new Promise((resolve) => {
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 50, left: 50, right: 50, bottom: 50 },
+      });
+      const buffers: Buffer[] = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
+      });
+
+      doc
+        .fontSize(20)
+        .text('Relatório de Imóveis', { align: 'center' })
+        .image(
+          'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png',
+          480,
+          20,
+          { width: 80 },
+        )
+        .moveDown();
+
+      doc
+        .fontSize(12)
+        .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
+          align: 'right',
+        })
+        .moveDown();
+
+      doc.fontSize(12).font('Helvetica');
+
+      realEstates.forEach((realEstate) => {
+        doc
+          .fillColor('#000000')
+          .text(
+            `Endereço: ${realEstate.street}, ${realEstate.number}, ${realEstate.city} - ${realEstate.state}`,
+            { width: 500 },
+          )
+          .text(`Registro: ${realEstate.registration || 'N/A'}`, { width: 500 })
+          .text(`Área Construída: ${realEstate.builtArea || 'N/A'} m²`, {
+            width: 500,
+          })
+          .text(`Área Total: ${realEstate.totalArea || 'N/A'} m²`, {
+            width: 500,
+          })
+          .text(`Quartos: ${realEstate.bedrooms || 'N/A'}`, { width: 500 })
+          .text(`Banheiros: ${realEstate.bathrooms || 'N/A'}`, { width: 500 })
+          .text(`Garagem: ${realEstate.garage ? 'Sim' : 'Não'}`, { width: 500 })
+          .text(
+            `Preço de Venda: ${
+              realEstate.salePrice ? `R$ ${realEstate.salePrice}` : 'N/A'
+            }`,
+            { width: 500 },
+          )
+          .text(
+            `Status: ${realEstate.status ? 'Disponível' : 'Indisponível'}`,
+            {
+              width: 500,
+            },
+          )
+          .moveDown(1);
+
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+      });
+
+      doc.end();
     });
   }
 }

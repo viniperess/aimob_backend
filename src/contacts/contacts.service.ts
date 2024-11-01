@@ -145,14 +145,14 @@ export class ContactsService {
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => {
         const pdfBuffer = Buffer.concat(buffers);
-        resolve(pdfBuffer); // Resolva aqui o buffer ao final
+        resolve(pdfBuffer);
       });
 
       doc
         .fontSize(20)
         .text('Relatório de Contatos Novos', { align: 'center' })
         .image(
-          '../my-frontend-app/src/assets/images/logosemfundo_azul.png',
+          'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png',
           480,
           20,
           { width: 80 },
