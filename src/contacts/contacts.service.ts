@@ -151,8 +151,12 @@ export class ContactsService {
       doc
         .fontSize(20)
         .text('Relatório de Contatos Novos', { align: 'center' })
-        // Remova temporariamente a linha de imagem para verificar se há erro
-        //.image('../my-frontend-app/src/assets/images/logosemfundo_azul.png', 480, 20, { width: 80 })
+        .image(
+          '../my-frontend-app/src/assets/images/logosemfundo_azul.png',
+          480,
+          20,
+          { width: 80 },
+        )
         .moveDown();
 
       doc
