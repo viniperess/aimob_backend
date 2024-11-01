@@ -3,6 +3,7 @@ import { PrismaClient, RealEstate } from '@prisma/client';
 import { AuthRequest } from 'src/auth/models/AuthRequest';
 import PDFDocument = require('pdfkit');
 import { S3 } from 'aws-sdk';
+import axios from 'axios';
 
 @Injectable()
 export class RealestatesService {
@@ -294,6 +295,13 @@ export class RealestatesService {
     return this.generatePdfReport(realEstateReport);
   }
   async generatePdfReport(realEstates: RealEstate[]): Promise<Buffer> {
+    const imageUrl =
+      'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png';
+    const imageResponse = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+    });
+    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+
     return new Promise((resolve) => {
       const doc = new PDFDocument({
         size: 'A4',
@@ -309,12 +317,7 @@ export class RealestatesService {
       doc
         .fontSize(20)
         .text('Relatório de Imóveis', { align: 'center' })
-        .image(
-          'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png',
-          480,
-          20,
-          { width: 80 },
-        )
+        .image(imageBuffer, 480, 20, { width: 80 })
         .moveDown();
 
       doc

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Contact, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import PDFDocument = require('pdfkit');
+import axios from 'axios';
 
 @Injectable()
 export class ContactsService {
@@ -135,6 +136,12 @@ export class ContactsService {
     return this.generatePdfReport(contacts);
   }
   async generatePdfReport(contacts: Contact[]): Promise<Buffer> {
+    const imageUrl =
+      'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png';
+    const imageResponse = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+    });
+    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
     return new Promise((resolve) => {
       const doc = new PDFDocument({
         size: 'A4',
@@ -151,12 +158,7 @@ export class ContactsService {
       doc
         .fontSize(20)
         .text('Relatório de Contatos Novos', { align: 'center' })
-        .image(
-          'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png',
-          480,
-          20,
-          { width: 80 },
-        )
+        .image(imageBuffer, 480, 20, { width: 80 })
         .moveDown();
 
       doc
