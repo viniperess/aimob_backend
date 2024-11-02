@@ -8,7 +8,7 @@ import {
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import * as nodemailer from 'nodemailer';
-import { format } from 'date-fns';
+import { format, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 @Injectable()
@@ -179,7 +179,7 @@ export class AppointmentsService {
 
       if (data.visitApproved === true) {
         subject = 'Confirmação de Agendamento Aprovado';
-        const adjustedVisitDate = appointment.visitDate;
+        const adjustedVisitDate = subHours(appointment.visitDate, 3);
         const formattedDate = format(
           adjustedVisitDate,
           "dd/MM/yyyy 'às' HH:mm",
