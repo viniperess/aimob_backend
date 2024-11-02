@@ -1,3 +1,5 @@
+import { config } from 'dotenv';
+config();
 import {
   BadRequestException,
   Injectable,
@@ -5,14 +7,26 @@ import {
 } from '@nestjs/common';
 import { Appointment, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
+import * as nodemailer from 'nodemailer';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 @Injectable()
 export class AppointmentsService {
+  private transporter: nodemailer.Transporter;
   private client: any;
   constructor(
     private prisma: PrismaClient,
     private readonly realEstatesService: RealestatesService,
-  ) {}
+  ) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
 
   async create(data: any) {
     const {
@@ -155,10 +169,50 @@ export class AppointmentsService {
       where: { id },
       data,
     });
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id },
+      include: { contact: true },
+    });
+    if (appointment && appointment.contact && appointment.contact.email) {
+      let subject: string;
+      let message: string;
 
+      if (data.visitApproved === true) {
+        subject = 'Confirmação de Agendamento Aprovado';
+        const adjustedVisitDate = appointment.visitDate;
+        const formattedDate = format(
+          adjustedVisitDate,
+          "dd/MM/yyyy 'às' HH:mm",
+          { locale: ptBR },
+        );
+        message = `Seu agendamento foi aprovado para a data e hora: ${formattedDate}.`;
+      } else if (data.visitApproved === false) {
+        subject = 'Agendamento Recusado';
+        message =
+          'Infelizmente, seu agendamento foi recusado. Entre em contato para mais detalhes.';
+      }
+
+      console.log(`Enviando e-mail para ${appointment.contact.email}...`);
+      await this.sendEmail(appointment.contact.email, subject, message);
+    }
     return updatedAppointment;
   }
 
+  async sendEmail(to: string, subject: string, text: string) {
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to,
+      subject,
+      text,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log('E-mail enviado com sucesso');
+    } catch (error) {
+      console.error('Erro ao enviar e-mail:', error);
+    }
+  }
   async remove(id: number) {
     const deletedAppointment = await this.prisma.appointment.delete({
       where: { id },
