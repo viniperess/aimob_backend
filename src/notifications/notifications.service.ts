@@ -15,18 +15,21 @@ export class NotificationsService {
     return createNotification;
   }
 
-  async findAll() {
-    const foundAllNotifications = await this.prisma.notification.findMany({
+  async findAll(userId: number) {
+    return await this.prisma.notification.findMany({
+      where: {
+        task: {
+          userId,
+        },
+      },
       include: {
         task: true,
       },
     });
-    return foundAllNotifications;
   }
-
-  async findOne(id: number) {
-    const foundOneNotification = await this.prisma.notification.findUnique({
-      where: { id },
+  async findOne(id: number, userId: number) {
+    const foundOneNotification = await this.prisma.notification.findFirst({
+      where: { id, task: { userId } },
       include: { task: true },
     });
     return foundOneNotification;

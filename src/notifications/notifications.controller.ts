@@ -6,10 +6,12 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { Notification } from '@prisma/client';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
+import { AuthRequest } from 'src/auth/models/AuthRequest';
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -20,13 +22,15 @@ export class NotificationsController {
   }
 
   @Get()
-  findAll() {
-    return this.notificationsService.findAll();
+  findAll(@Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return this.notificationsService.findAll(userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.notificationsService.findOne(+id);
+  findOne(@Param('id') id: number, @Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return this.notificationsService.findOne(+id, userId);
   }
 
   @Patch(':id')
