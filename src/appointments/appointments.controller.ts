@@ -6,47 +6,50 @@ import {
   Param,
   Delete,
   Patch,
+  Req,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from '@prisma/client';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
+import { AuthRequest } from 'src/auth/models/AuthRequest';
 
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
-
-  @IsPublic()
-  @Post('create-by-corrector')
-  createByCorretor(@Body() appointment: Appointment) {
-    return this.appointmentsService.create(appointment);
+  @Get(':id')
+  async findOne(@Param('id') id: number, @Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return await this.appointmentsService.findOne(+id, userId);
   }
 
   @IsPublic()
-  @Post('create-by-contact')
-  createByContact(@Body() appointment: Appointment) {
+  @Post('create')
+  async createByContact(@Body() appointment: Appointment) {
     return this.appointmentsService.create(appointment);
   }
 
   @Get()
-  findAll(): Promise<Appointment[]> {
-    return this.appointmentsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: number): Promise<Appointment | null> {
-    return this.appointmentsService.findOne(+id);
+  async findAll(@Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return await this.appointmentsService.findAll(userId);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: number,
     @Body() appointment: Appointment,
+    @Req() request: AuthRequest,
   ): Promise<Appointment> {
-    return this.appointmentsService.update(+id, appointment);
+    const userId = request.user.id;
+    return this.appointmentsService.update(+id, appointment, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: number): Promise<Appointment> {
-    return this.appointmentsService.remove(+id);
+  async remove(
+    @Param('id') id: number,
+    @Req() request: AuthRequest,
+  ): Promise<Appointment> {
+    const userId = request.user.id;
+    return this.appointmentsService.remove(+id, userId);
   }
 }
