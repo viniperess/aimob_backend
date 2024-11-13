@@ -8,11 +8,13 @@ import {
   Delete,
   Query,
   Res,
+  Req,
 } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { Contact } from '@prisma/client';
 import { IsPublic } from 'src/auth/decorators/is-public.decorator';
 import { Response } from 'express';
+import { AuthRequest } from 'src/auth/models/AuthRequest';
 @Controller('contacts')
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
@@ -33,8 +35,13 @@ export class ContactsController {
   async getClientReport(
     @Query('filter') filter: 'all' | '15days' | 'today',
     @Res() res: Response,
+    @Req() request: AuthRequest,
   ) {
-    const pdfBuffer = await this.contactsService.generateClienteReport(filter);
+    const userId = request.user.id;
+    const pdfBuffer = await this.contactsService.generateClienteReport(
+      filter,
+      userId,
+    );
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -46,25 +53,30 @@ export class ContactsController {
   }
 
   @Get()
-  findAll(): Promise<Contact[]> {
-    return this.contactsService.findAll();
+  async findAll(@Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return await this.contactsService.findAll(userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number): Promise<Contact | null> {
-    return this.contactsService.findOne(+id);
+  async findOne(@Param('id') id: number, @Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return await this.contactsService.findOne(+id, userId);
   }
 
   @Patch(':id')
   update(
     @Param('id') id: number,
     @Body() contact: Contact,
+    @Req() request: AuthRequest,
   ): Promise<Contact | null> {
-    return this.contactsService.update(+id, contact);
+    const userId = request.user.id;
+    return this.contactsService.update(+id, contact, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.contactsService.remove(+id);
+  async remove(@Param('id') id: number, @Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return this.contactsService.remove(+id, userId);
   }
 }

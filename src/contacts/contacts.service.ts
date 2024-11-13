@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Contact, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import PDFDocument = require('pdfkit');
@@ -17,96 +22,151 @@ export class ContactsService {
     });
 
     if (existEmail) {
-      throw new Error('Email already exists.');
+      throw new BadRequestException('O e-mail já está registrado.');
     }
 
-    const contacts = await this.prisma.contact.create({
-      data: {
-        ...data,
-      },
-    });
-
-    return contacts;
+    try {
+      const contact = await this.prisma.contact.create({
+        data: {
+          ...data,
+        },
+      });
+      return contact;
+    } catch (error) {
+      console.error('Erro ao criar contato:', error);
+      throw new InternalServerErrorException(
+        'Erro ao criar o contato. Tente novamente.',
+      );
+    }
   }
 
   async createContactBasic(data: any) {
     const { taskStatus, taskDescription, estateId, ...contactsData } = data;
-
-    let contact = await this.prisma.contact.findUnique({
-      where: { email: contactsData.email },
-    });
-
-    if (contact) {
-      contact = await this.prisma.contact.update({
+    try {
+      let contact = await this.prisma.contact.findUnique({
         where: { email: contactsData.email },
-        data: contactsData,
       });
-    } else {
-      contact = await this.prisma.contact.create({
-        data: contactsData,
+
+      if (contact) {
+        contact = await this.prisma.contact.update({
+          where: { email: contactsData.email },
+          data: contactsData,
+        });
+      } else {
+        contact = await this.prisma.contact.create({
+          data: contactsData,
+        });
+      }
+
+      const realEstate = await this.realEstatesService.findOne(estateId);
+      if (!realEstate) {
+        throw new NotFoundException('Imóvel não encontrado.');
+      }
+      const userId = realEstate.userId;
+
+      if (!userId) {
+        throw new InternalServerErrorException(
+          'Erro ao associar usuário ao contato.',
+        );
+      }
+
+      contact = await this.prisma.contact.update({
+        where: { id: contact.id },
+        data: { userId },
       });
+
+      const createTask = await this.prisma.task.create({
+        data: {
+          status: taskStatus,
+          description: taskDescription,
+          userId: userId,
+          contactId: contact.id,
+          estateId: estateId,
+        },
+      });
+
+      const createNotification = await this.prisma.notification.create({
+        data: {
+          taskId: createTask.id,
+        },
+      });
+
+      console.log(createTask, contact, createNotification);
+
+      return contact;
+    } catch (error) {
+      console.error('Erro ao criar contato básico:', error);
+      throw new InternalServerErrorException(
+        'Erro ao criar o contato básico. Tente novamente.',
+      );
     }
-
-    const realEstate = await this.realEstatesService.findOne(estateId);
-    if (!realEstate) {
-      throw new NotFoundException('Real estate not found');
-    }
-
-    const userId = realEstate.userId;
-
-    if (!userId) {
-      throw new Error('UserId is null or undefined');
-    }
-
-    const createTask = await this.prisma.task.create({
-      data: {
-        status: taskStatus,
-        description: taskDescription,
-        userId: userId,
-        contactId: contact.id,
-        estateId: estateId,
-      },
-    });
-
-    const createNotification = await this.prisma.notification.create({
-      data: {
-        taskId: createTask.id,
-      },
-    });
-
-    console.log(createTask, contact, createNotification);
-
-    return contact;
   }
 
-  async findAll(): Promise<Contact[]> {
-    const foundAllContacts = await this.prisma.contact.findMany();
-    return foundAllContacts;
+  async findAll(userId: number): Promise<Contact[]> {
+    try {
+      const contacts = await this.prisma.contact.findMany({
+        where: { userId },
+      });
+      return contacts;
+    } catch (error) {
+      console.error('Erro ao buscar contatos:', error);
+      throw new InternalServerErrorException(
+        'Erro ao buscar os contatos. Tente novamente.',
+      );
+    }
   }
 
-  async findOne(id: number) {
-    const foundOneContact = await this.prisma.contact.findUnique({
-      where: { id },
+  async findOne(id: number, userId: number): Promise<Contact> {
+    const foundOneContact = await this.prisma.contact.findFirst({
+      where: { id, userId },
     });
+    if (!foundOneContact) {
+      throw new NotFoundException('Contato não encontrado.');
+    }
     return foundOneContact;
   }
 
-  async update(id: number, data: Partial<Contact>): Promise<Contact> {
-    const updatedContact = await this.prisma.contact.update({
+  async update(
+    id: number,
+    data: Partial<Contact>,
+    userId: number,
+  ): Promise<Contact> {
+    const contact = await this.prisma.contact.findFirst({
+      where: { id, userId },
+    });
+    if (!contact) {
+      throw new NotFoundException('Contato não encontrado.');
+    }
+    return await this.prisma.contact.update({
       where: { id },
       data,
     });
-    return updatedContact;
   }
 
-  async remove(id: number) {
-    const deletedContact = await this.prisma.contact.delete({
-      where: { id },
+  async remove(id: number, userId: number) {
+    const contact = await this.prisma.contact.findFirst({
+      where: { id, userId },
     });
-    return deletedContact;
+    if (!contact) {
+      throw new NotFoundException('Contato não encontrado.');
+    }
+
+    try {
+      return await this.prisma.contact.delete({
+        where: { id },
+      });
+    } catch (error) {
+      console.error('Erro ao deletar contato:', error);
+      throw new InternalServerErrorException(
+        'Erro ao deletar o contato. Tente novamente.',
+      );
+    }
   }
 
-  async generateClienteReport(filter: 'all' | '15days' | 'today') {
+  async generateClienteReport(
+    filter: 'all' | '15days' | 'today',
+    userId: number,
+  ) {
     const today = new Date();
     let dateFilter;
 
@@ -117,74 +177,88 @@ export class ContactsService {
       const endOfDay = new Date(today.setHours(23, 59, 59, 999));
       dateFilter = { startOfDay, endOfDay };
     }
-
-    const contacts = await this.prisma.contact.findMany({
-      where: dateFilter
-        ? {
-            createdAt:
-              filter === 'today'
-                ? {
-                    gte: dateFilter.startOfDay,
-                    lte: dateFilter.endOfDay,
-                  }
-                : {
-                    gte: dateFilter,
-                  },
-          }
-        : {},
-    });
-    return this.generatePdfReport(contacts);
+    try {
+      const contacts = await this.prisma.contact.findMany({
+        where: {
+          userId,
+          createdAt: dateFilter
+            ? filter === 'today'
+              ? {
+                  gte: dateFilter.startOfDay,
+                  lte: dateFilter.endOfDay,
+                }
+              : { gte: dateFilter }
+            : undefined,
+        },
+      });
+      return this.generatePdfReport(contacts);
+    } catch (error) {
+      console.error('Erro ao gerar relatório de clientes:', error);
+      throw new InternalServerErrorException(
+        'Erro ao gerar o relatório de clientes. Tente novamente.',
+      );
+    }
   }
   async generatePdfReport(contacts: Contact[]): Promise<Buffer> {
     const imageUrl =
       'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png';
-    const imageResponse = await axios.get(imageUrl, {
-      responseType: 'arraybuffer',
-    });
-    const imageBuffer = Buffer.from(imageResponse.data, 'binary');
-    return new Promise((resolve) => {
-      const doc = new PDFDocument({
-        size: 'A4',
-        margins: { top: 50, left: 50, right: 50, bottom: 50 },
+    try {
+      const imageResponse = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
       });
-      const buffers: Buffer[] = [];
+      const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+      return new Promise((resolve) => {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margins: { top: 50, left: 50, right: 50, bottom: 50 },
+        });
+        const buffers: Buffer[] = [];
 
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => {
-        const pdfBuffer = Buffer.concat(buffers);
-        resolve(pdfBuffer);
-      });
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
 
-      doc
-        .fontSize(20)
-        .text('Relatório de Contatos Novos', { align: 'center' })
-        .image(imageBuffer, 480, 20, { width: 80 })
-        .moveDown();
-
-      doc
-        .fontSize(12)
-        .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
-          align: 'right',
-        })
-        .moveDown();
-
-      doc.fontSize(12).font('Helvetica');
-
-      contacts.forEach((contact) => {
         doc
-          .fillColor('#000000')
-          .text(`Nome: ${contact.name}`, { width: 200 })
-          .text(`Email: ${contact.email}`, { width: 200 })
-          .text(`Telefone: ${contact.phone}`, { width: 200 })
-          .text(`Data da Criação: ${contact.createdAt.toLocaleDateString()}`, {
-            width: 200,
+          .fontSize(20)
+          .text('Relatório de Contatos Novos', { align: 'center' })
+          .image(imageBuffer, 480, 20, { width: 80 })
+          .moveDown();
+
+        doc
+          .fontSize(12)
+          .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
+            align: 'right',
           })
-          .moveDown(1);
+          .moveDown();
 
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+        doc.fontSize(12).font('Helvetica');
+
+        contacts.forEach((contact) => {
+          doc
+            .fillColor('#000000')
+            .text(`Nome: ${contact.name}`, { width: 200 })
+            .text(`Email: ${contact.email}`, { width: 200 })
+            .text(`Telefone: ${contact.phone}`, { width: 200 })
+            .text(
+              `Data da Criação: ${contact.createdAt.toLocaleDateString()}`,
+              {
+                width: 200,
+              },
+            )
+            .moveDown(1);
+
+          doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+        });
+
+        doc.end();
       });
-
-      doc.end();
-    });
+    } catch (error) {
+      console.error('Erro ao gerar PDF de relatório:', error);
+      throw new InternalServerErrorException(
+        'Erro ao gerar o relatório em PDF.',
+      );
+    }
   }
 }
