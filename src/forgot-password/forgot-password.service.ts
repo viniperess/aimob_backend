@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,7 +21,7 @@ export class ForgotPasswordService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('Usuário não encontrado.');
     }
 
     const resetCode = uuidv4().slice(0, 6);
@@ -56,20 +61,27 @@ export class ForgotPasswordService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('Usuário não encontrado.');
     }
 
     if (user.resetCode !== code) {
-      throw new Error('Invalid reset code');
+      throw new BadRequestException('Código de redefinição inválido.');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword, resetCode: null },
-    });
+    try {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword, resetCode: null },
+      });
 
-    return 'Senha redefinida com sucesso!';
+      return 'Senha redefinida com sucesso!';
+    } catch (error) {
+      console.error('Erro ao redefinir a senha:', error);
+      throw new InternalServerErrorException(
+        'Erro ao redefinir a senha. Tente novamente.',
+      );
+    }
   }
 }
