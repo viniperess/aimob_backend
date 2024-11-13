@@ -45,9 +45,12 @@ export class RealestatesController {
       status?: boolean;
     },
     @Res() res: Response,
+    @Req() request: AuthRequest,
   ) {
+    const userId = request.user.id;
     const pdfBuffer = await this.realestatesService.generateRealEstateReport(
       filters,
+      userId,
     );
 
     res.set({
@@ -59,10 +62,16 @@ export class RealestatesController {
     res.end(pdfBuffer);
   }
 
-  @IsPublic()
   @Get()
-  findAll(): Promise<RealEstate[]> {
-    return this.realestatesService.findAll();
+  async findAll(@Req() request: AuthRequest) {
+    const userId = request.user.id;
+    return await this.realestatesService.findAll(userId);
+  }
+
+  @IsPublic()
+  @Get('available')
+  async findAllAvailable() {
+    return await this.realestatesService.findAllAvailable();
   }
 
   @IsPublic()
@@ -85,7 +94,7 @@ export class RealestatesController {
     console.log('Filtros recebidos:', filters);
     const results = await this.realestatesService.advanceSearch(filters);
 
-    console.log('Resultado da busca:', results); // Log para verificar o resultado da busca
+    console.log('Resultado da busca:', results);
     return results;
   }
 
@@ -94,10 +103,11 @@ export class RealestatesController {
   searchProjects(@Query('type') type: string): Promise<RealEstate[] | null> {
     return this.realestatesService.searchRealEstate(type);
   }
+
   @IsPublic()
   @Get(':id')
-  findOne(@Param('id') id: number): Promise<RealEstate | null> {
-    return this.realestatesService.findOne(+id);
+  async findOne(@Param('id') id: number) {
+    return await this.realestatesService.findOne(+id);
   }
 
   @Patch(':id')

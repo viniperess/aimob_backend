@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClient, RealEstate } from '@prisma/client';
 import { AuthRequest } from 'src/auth/models/AuthRequest';
 import PDFDocument = require('pdfkit');
@@ -16,15 +21,20 @@ export class RealestatesService {
     });
   }
   async uploadToS3(image: Express.Multer.File): Promise<string> {
-    const params = {
-      Bucket: 'bucket-aimob-images',
-      Key: `${Date.now()}-${image.originalname}`, // Use um nome único para o arquivo
-      Body: image.buffer,
-      ContentType: image.mimetype,
-    };
+    try {
+      const params = {
+        Bucket: 'bucket-aimob-images',
+        Key: `${Date.now()}-${image.originalname}`,
+        Body: image.buffer,
+        ContentType: image.mimetype,
+      };
 
-    const uploadResult = await this.s3.upload(params).promise();
-    return uploadResult.Location; // Retorna a URL da imagem
+      const uploadResult = await this.s3.upload(params).promise();
+      return uploadResult.Location;
+    } catch (error) {
+      console.error('Erro ao fazer upload para o S3:', error);
+      throw new InternalServerErrorException('Erro ao fazer upload da imagem.');
+    }
   }
   async create(
     data: any,
@@ -36,50 +46,79 @@ export class RealestatesService {
     const existingRealEstate = await this.prisma.realEstate.findUnique({
       where: { registration: realEstateData.registration },
     });
-    if (images && images.length > 0) {
-      const imageUrls = await Promise.all(
-        images.map(async (image) => {
-          const url = await this.uploadToS3(image);
-          console.log('Uploaded image URL:', url); // Log da URL da imagem
-          return url;
-        }),
-      );
-      console.log('All uploaded image URLs:', imageUrls); // Log de todas as URLs
-      realEstateData.images = imageUrls; // Adiciona os URLs das imagens
-    }
-    if (realEstateData.salePrice) {
-      realEstateData.salePrice = Number(realEstateData.salePrice);
-    }
-    realEstateData.garage = !!realEstateData.garage;
-    realEstateData.status = !!realEstateData.status;
 
     if (existingRealEstate) {
-      throw new NotFoundException(
-        'RealEstate with this registration already exists.',
-      );
+      throw new BadRequestException('Imóvel com este registro já existe.');
     }
     console.log('User ID:', userId);
+    try {
+      if (images && images.length > 0) {
+        const imageUrls = await Promise.all(
+          images.map(async (image) => {
+            const url = await this.uploadToS3(image);
+            console.log('Uploaded image URL:', url);
+            return url;
+          }),
+        );
+        console.log('All uploaded image URLs:', imageUrls);
+        realEstateData.images = imageUrls;
+      }
+      if (realEstateData.salePrice) {
+        realEstateData.salePrice = Number(realEstateData.salePrice);
+      }
+      realEstateData.garage = !!realEstateData.garage;
+      realEstateData.status = !!realEstateData.status;
+      const createdRealEstate = await this.prisma.realEstate.create({
+        data: {
+          ...realEstateData,
+          userId: userId,
+        },
+      });
+      return createdRealEstate;
+    } catch (error) {
+      console.error('Erro ao criar imóvel:', error);
+      throw new InternalServerErrorException('Erro ao criar o imóvel.');
+    }
+  }
 
-    const createdRealEstate = await this.prisma.realEstate.create({
+  async findAll(userId: number): Promise<RealEstate[]> {
+    try {
+      return await this.prisma.realEstate.findMany({
+        where: { userId },
+      });
+    } catch (error) {
+      console.error('Erro ao buscar imóveis:', error);
+      throw new InternalServerErrorException('Erro ao buscar imóveis.');
+    }
+  }
+  async findAllAvailable(): Promise<RealEstate[]> {
+    try {
+      return await this.prisma.realEstate.findMany({
+        where: { status: true },
+        orderBy: { viewsCount: 'desc' },
+      });
+    } catch (error) {
+      console.error('Erro ao buscar imóveis disponíveis:', error);
+      throw new InternalServerErrorException(
+        'Erro ao buscar imóveis disponíveis.',
+      );
+    }
+  }
+  async findOne(id: number): Promise<RealEstate> {
+    const foundOneRealEstate = await this.prisma.realEstate.findFirst({
+      where: { id },
+    });
+
+    if (!foundOneRealEstate) {
+      throw new NotFoundException('Imóvel não encontrado');
+    }
+    await this.prisma.realEstate.update({
+      where: { id },
       data: {
-        ...realEstateData,
-        userId: userId,
+        viewsCount: foundOneRealEstate.viewsCount + 1,
       },
     });
 
-    return createdRealEstate;
-  }
-
-  async findAll(): Promise<RealEstate[]> {
-    const foundAllRealEstate = await this.prisma.realEstate.findMany();
-
-    return foundAllRealEstate;
-  }
-
-  async findOne(id: number): Promise<RealEstate> {
-    const foundOneRealEstate = await this.prisma.realEstate.findUnique({
-      where: { id },
-    });
     return foundOneRealEstate;
   }
 
@@ -97,7 +136,7 @@ export class RealestatesService {
       return searchResults;
     } catch (error) {
       console.error('Erro ao buscar imóveis:', error);
-      throw new Error('Erro ao buscar imóveis');
+      throw new InternalServerErrorException('Erro ao buscar imóveis');
     }
   }
 
@@ -113,76 +152,84 @@ export class RealestatesService {
     yard?: string;
     pool?: string;
   }): Promise<RealEstate[]> {
-    const parseFilters = (filters: any) => {
-      return {
-        bedrooms: filters.bedrooms,
-        bathrooms: filters.bathrooms,
-        kitchens: filters.kitchens,
-        livingRooms: filters.livingRooms,
-        minPrice: filters.minPrice
-          ? parseFloat(filters.minPrice.trim())
-          : undefined,
-        maxPrice: filters.maxPrice
-          ? parseFloat(filters.maxPrice.trim())
-          : undefined,
-        type: filters.type,
-        garage: filters.garage ? filters.garage.trim() === 'true' : undefined,
-        yard: filters.yard ? filters.yard.trim() === 'true' : undefined,
-        pool: filters.pool ? filters.pool.trim() === 'true' : undefined,
+    try {
+      const parseFilters = (filters: any) => {
+        return {
+          bedrooms: filters.bedrooms,
+          bathrooms: filters.bathrooms,
+          kitchens: filters.kitchens,
+          livingRooms: filters.livingRooms,
+          minPrice: filters.minPrice
+            ? parseFloat(filters.minPrice.trim())
+            : undefined,
+          maxPrice: filters.maxPrice
+            ? parseFloat(filters.maxPrice.trim())
+            : undefined,
+          type: filters.type,
+          garage: filters.garage ? filters.garage.trim() === 'true' : undefined,
+          yard: filters.yard ? filters.yard.trim() === 'true' : undefined,
+          pool: filters.pool ? filters.pool.trim() === 'true' : undefined,
+        };
       };
-    };
-    const cleanedFilters = parseFilters(filters);
-    console.log('Filtros limpos recebidos no serviço:', cleanedFilters);
-    const whereConditions: any = {};
 
-    if (cleanedFilters.bedrooms) {
-      whereConditions.bedrooms = cleanedFilters.bedrooms;
-      console.log('Filtro de quartos aplicado:', cleanedFilters.bedrooms);
-    }
-    if (cleanedFilters.bathrooms) {
-      whereConditions.bathrooms = cleanedFilters.bathrooms;
-      console.log('Filtro de banheiros aplicado:', cleanedFilters.bathrooms);
-    }
-    if (cleanedFilters.kitchens) {
-      whereConditions.kitchens = cleanedFilters.kitchens;
-      console.log('Filtro de cozinhas aplicado:', cleanedFilters.kitchens);
-    }
-    if (cleanedFilters.livingRooms) {
-      whereConditions.livingRooms = cleanedFilters.livingRooms;
-      console.log('Filtro de salas aplicado:', cleanedFilters.livingRooms);
-    }
-    if (cleanedFilters.minPrice || cleanedFilters.maxPrice) {
-      whereConditions.salePrice = {
-        ...(cleanedFilters.minPrice && { gte: cleanedFilters.minPrice }),
-        ...(cleanedFilters.maxPrice && { lte: cleanedFilters.maxPrice }),
-      };
-      console.log('Filtro de preço aplicado:', whereConditions.salePrice);
-    }
-    if (cleanedFilters.type) {
-      whereConditions.type = cleanedFilters.type;
-      console.log('Filtro de tipo aplicado:', cleanedFilters.type);
-    }
-    if (cleanedFilters.garage !== undefined) {
-      whereConditions.garage = cleanedFilters.garage;
-      console.log('Filtro de garagem aplicado:', cleanedFilters.garage);
-    }
-    if (cleanedFilters.yard !== undefined) {
-      whereConditions.yard = cleanedFilters.yard;
-      console.log('Filtro de pátio aplicado:', cleanedFilters.yard);
-    }
-    if (cleanedFilters.pool !== undefined) {
-      whereConditions.pool = cleanedFilters.pool;
-      console.log('Filtro de piscina aplicado:', cleanedFilters.pool);
-    }
+      const cleanedFilters = parseFilters(filters);
+      console.log('Filtros limpos recebidos no serviço:', cleanedFilters);
+      const whereConditions: any = {};
 
-    console.log('Condições finais da busca:', whereConditions);
+      if (cleanedFilters.bedrooms) {
+        whereConditions.bedrooms = cleanedFilters.bedrooms;
+        console.log('Filtro de quartos aplicado:', cleanedFilters.bedrooms);
+      }
+      if (cleanedFilters.bathrooms) {
+        whereConditions.bathrooms = cleanedFilters.bathrooms;
+        console.log('Filtro de banheiros aplicado:', cleanedFilters.bathrooms);
+      }
+      if (cleanedFilters.kitchens) {
+        whereConditions.kitchens = cleanedFilters.kitchens;
+        console.log('Filtro de cozinhas aplicado:', cleanedFilters.kitchens);
+      }
+      if (cleanedFilters.livingRooms) {
+        whereConditions.livingRooms = cleanedFilters.livingRooms;
+        console.log('Filtro de salas aplicado:', cleanedFilters.livingRooms);
+      }
+      if (cleanedFilters.minPrice || cleanedFilters.maxPrice) {
+        whereConditions.salePrice = {
+          ...(cleanedFilters.minPrice && { gte: cleanedFilters.minPrice }),
+          ...(cleanedFilters.maxPrice && { lte: cleanedFilters.maxPrice }),
+        };
+        console.log('Filtro de preço aplicado:', whereConditions.salePrice);
+      }
+      if (cleanedFilters.type) {
+        whereConditions.type = cleanedFilters.type;
+        console.log('Filtro de tipo aplicado:', cleanedFilters.type);
+      }
+      if (cleanedFilters.garage !== undefined) {
+        whereConditions.garage = cleanedFilters.garage;
+        console.log('Filtro de garagem aplicado:', cleanedFilters.garage);
+      }
+      if (cleanedFilters.yard !== undefined) {
+        whereConditions.yard = cleanedFilters.yard;
+        console.log('Filtro de pátio aplicado:', cleanedFilters.yard);
+      }
+      if (cleanedFilters.pool !== undefined) {
+        whereConditions.pool = cleanedFilters.pool;
+        console.log('Filtro de piscina aplicado:', cleanedFilters.pool);
+      }
 
-    const results = await this.prisma.realEstate.findMany({
-      where: whereConditions,
-    });
+      console.log('Condições finais da busca:', whereConditions);
 
-    console.log('Resultado final da consulta:', results);
-    return results;
+      const results = await this.prisma.realEstate.findMany({
+        where: whereConditions,
+      });
+
+      console.log('Resultado final da consulta:', results);
+      return results;
+    } catch (error) {
+      console.error('Erro ao realizar busca avançada:', error);
+      throw new InternalServerErrorException(
+        'Erro ao realizar busca avançada.',
+      );
+    }
   }
 
   async update(
@@ -195,104 +242,115 @@ export class RealestatesService {
     });
 
     if (!existingRealEstate) {
-      throw new NotFoundException('RealEstate not found.');
+      throw new NotFoundException('Imóvel não encontrado.');
     }
+    try {
+      const updatedData: Partial<RealEstate> = {
+        street: data.street || existingRealEstate.street,
+        number: data.number || existingRealEstate.number,
+        complement: data.complement || existingRealEstate.complement,
+        district: data.district || existingRealEstate.district,
+        zipCode: data.zipCode || existingRealEstate.zipCode,
+        city: data.city || existingRealEstate.city,
+        state: data.state || existingRealEstate.state,
+        builtArea: data.builtArea || existingRealEstate.builtArea,
+        totalArea: data.totalArea || existingRealEstate.totalArea,
+        bedrooms: data.bedrooms || existingRealEstate.bedrooms,
+        bathrooms: data.bathrooms || existingRealEstate.bathrooms,
+        livingRooms: data.livingRooms || existingRealEstate.livingRooms,
+        kitchens: data.kitchens || existingRealEstate.kitchens,
+        garage:
+          data.garage !== undefined
+            ? Boolean(data.garage)
+            : existingRealEstate.garage,
+        type: data.type || existingRealEstate.type,
+        description: data.description || existingRealEstate.description,
+        salePrice:
+          data.salePrice !== undefined
+            ? Number(data.salePrice)
+            : existingRealEstate.salePrice,
+        status:
+          data.status !== undefined
+            ? Boolean(data.status)
+            : existingRealEstate.status,
+        registration: data.registration || existingRealEstate.registration,
+        images: [],
+      };
 
-    const updatedData: Partial<RealEstate> = {
-      street: data.street || existingRealEstate.street,
-      number: data.number || existingRealEstate.number,
-      complement: data.complement || existingRealEstate.complement,
-      district: data.district || existingRealEstate.district,
-      zipCode: data.zipCode || existingRealEstate.zipCode,
-      city: data.city || existingRealEstate.city,
-      state: data.state || existingRealEstate.state,
-      builtArea: data.builtArea || existingRealEstate.builtArea,
-      totalArea: data.totalArea || existingRealEstate.totalArea,
-      bedrooms: data.bedrooms || existingRealEstate.bedrooms,
-      bathrooms: data.bathrooms || existingRealEstate.bathrooms,
-      livingRooms: data.livingRooms || existingRealEstate.livingRooms,
-      kitchens: data.kitchens || existingRealEstate.kitchens,
-      garage:
-        data.garage !== undefined
-          ? Boolean(data.garage)
-          : existingRealEstate.garage,
-      type: data.type || existingRealEstate.type,
-      description: data.description || existingRealEstate.description,
-      salePrice:
-        data.salePrice !== undefined
-          ? Number(data.salePrice)
-          : existingRealEstate.salePrice,
-      status:
-        data.status !== undefined
-          ? Boolean(data.status)
-          : existingRealEstate.status,
-      registration: data.registration || existingRealEstate.registration,
-      images: [], // Inicializa como um array vazio
-    };
+      if (images && images.length > 0) {
+        const imageUrls = await Promise.all(
+          images.map(async (image) => {
+            const url = await this.uploadToS3(image);
+            console.log('Uploaded image URL:', url);
+            return url;
+          }),
+        );
+        updatedData.images = imageUrls;
+      } else {
+        updatedData.images = existingRealEstate.images;
+      }
 
-    // Verifica se novas imagens foram enviadas
-    if (images && images.length > 0) {
-      const imageUrls = await Promise.all(
-        images.map(async (image) => {
-          const url = await this.uploadToS3(image);
-          console.log('Uploaded image URL:', url);
-          return url;
-        }),
-      );
-      updatedData.images = imageUrls; // Substitui as imagens existentes pelas novas
-    } else {
-      // Se não houver novas imagens, mantenha as existentes
-      updatedData.images = existingRealEstate.images;
+      const updatedRealEstate = await this.prisma.realEstate.update({
+        where: { id },
+        data: updatedData,
+      });
+
+      return updatedRealEstate;
+    } catch (error) {
+      console.error('Erro ao atualizar imóvel:', error);
+      throw new InternalServerErrorException('Erro ao atualizar o imóvel.');
     }
-
-    // Atualiza os dados
-    const updatedRealEstate = await this.prisma.realEstate.update({
-      where: { id },
-      data: updatedData,
-    });
-
-    return updatedRealEstate;
   }
 
   async remove(id: number) {
-    const deletedRealEstate = await this.prisma.realEstate.delete({
-      where: {
-        id,
-      },
-    });
-    return deletedRealEstate;
+    try {
+      return await this.prisma.realEstate.delete({
+        where: { id },
+      });
+    } catch (error) {
+      console.error('Erro ao excluir imóvel:', error);
+      throw new InternalServerErrorException('Erro ao excluir o imóvel.');
+    }
   }
-
-  async generateRealEstateReport(filters: any) {
-    const whereConditions: any = {};
-
-    if (filters.minPrice || filters.maxPrice) {
-      const minPrice = filters.minPrice ? Number(filters.minPrice) : 0;
-      const maxPrice = filters.maxPrice
-        ? Number(filters.maxPrice)
-        : Number.MAX_SAFE_INTEGER;
-
-      whereConditions.salePrice = {
-        gte: minPrice,
-        lte: maxPrice,
+  async generateRealEstateReport(filters: any, userId: number) {
+    try {
+      const whereConditions: any = {
+        userId,
       };
-    }
 
-    if (filters.bedrooms) {
-      whereConditions.bedrooms = filters.bedrooms;
-    }
-    if (filters.bathrooms) {
-      whereConditions.bathrooms = filters.bathrooms;
-    }
-    if (filters.status !== undefined) {
-      whereConditions.status = filters.status === 'true';
-    }
-    console.log('Filtros aplicados no backend:', whereConditions);
-    const realEstateReport = await this.prisma.realEstate.findMany({
-      where: whereConditions,
-    });
+      if (filters.minPrice || filters.maxPrice) {
+        const minPrice = filters.minPrice ? Number(filters.minPrice) : 0;
+        const maxPrice = filters.maxPrice
+          ? Number(filters.maxPrice)
+          : Number.MAX_SAFE_INTEGER;
 
-    return this.generatePdfReport(realEstateReport);
+        whereConditions.salePrice = {
+          gte: minPrice,
+          lte: maxPrice,
+        };
+      }
+
+      if (filters.bedrooms) {
+        whereConditions.bedrooms = filters.bedrooms;
+      }
+      if (filters.bathrooms) {
+        whereConditions.bathrooms = filters.bathrooms;
+      }
+      if (filters.status !== undefined) {
+        whereConditions.status = filters.status === 'true';
+      }
+      console.log('Filtros aplicados no backend:', whereConditions);
+      const realEstateReport = await this.prisma.realEstate.findMany({
+        where: whereConditions,
+      });
+
+      return this.generatePdfReport(realEstateReport);
+    } catch (error) {
+      console.error('Erro ao gerar relatório de imóveis:', error);
+      throw new InternalServerErrorException(
+        'Erro ao gerar relatório de imóveis.',
+      );
+    }
   }
   async generatePdfReport(realEstates: RealEstate[]): Promise<Buffer> {
     const imageUrl =
