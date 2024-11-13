@@ -8,11 +8,14 @@ import {
   UseGuards,
   Request,
   Patch,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { User } from '@prisma/client';
 import { IsPublic } from '../auth/decorators/is-public.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 export class UsersController {
@@ -26,8 +29,12 @@ export class UsersController {
 
   @IsPublic()
   @Post()
-  create(@Body() user: User): Promise<User> {
-    return this.usersService.create(user);
+  @UseInterceptors(FileInterceptor('image'))
+  create(
+    @Body() user: User,
+    @UploadedFile() image: Express.Multer.File,
+  ): Promise<User> {
+    return this.usersService.create(user, image);
   }
 
   @IsPublic()
@@ -43,8 +50,13 @@ export class UsersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: number, @Body() user: User): Promise<User | null> {
-    return this.usersService.update(+id, user);
+  @UseInterceptors(FileInterceptor('image'))
+  update(
+    @Param('id') id: number,
+    @Body() user: User,
+    @UploadedFile() image: Express.Multer.File,
+  ): Promise<User | null> {
+    return this.usersService.update(+id, user, image);
   }
 
   @Delete(':id')
