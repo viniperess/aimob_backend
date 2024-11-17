@@ -107,6 +107,8 @@ export class TasksService {
   }
 
   async remove(id: number, userId: number) {
+    console.log('Tentando excluir tarefa:', id, 'Usuário:', userId);
+
     const task = await this.prisma.task.findFirst({
       where: { id, userId },
       include: {
@@ -114,27 +116,45 @@ export class TasksService {
         appointment: true,
       },
     });
+
     if (!task) {
+      console.error('Tarefa não encontrada ou acesso negado:', id);
       throw new NotFoundException('Tarefa não encontrada ou acesso negado.');
     }
+
     const contactId = task.contact?.id;
     const appointmentId = task.appointment?.id;
+
     try {
-      const deleteTask = await this.prisma.task.delete({
+      console.log('Excluindo tarefa:', id);
+      const deletedTask = await this.prisma.task.delete({
         where: { id },
       });
+      console.log('Tarefa excluída com sucesso:', deletedTask);
 
       if (contactId) {
+        console.log(
+          'Verificando se existem outras tarefas relacionadas ao contato:',
+          contactId,
+        );
         const remainingTasks = await this.prisma.task.findMany({
           where: { contactId },
         });
 
         if (remainingTasks.length === 0) {
+          console.log(
+            'Nenhuma outra tarefa encontrada. Excluindo contato:',
+            contactId,
+          );
           await this.prisma.contact.delete({
             where: { id: contactId },
           });
 
           if (appointmentId) {
+            console.log(
+              'Excluindo agendamento relacionado ao contato:',
+              appointmentId,
+            );
             await this.prisma.appointment.delete({
               where: { id: appointmentId },
             });
@@ -142,7 +162,7 @@ export class TasksService {
         }
       }
 
-      return deleteTask;
+      return deletedTask;
     } catch (error) {
       console.error('Erro ao excluir a tarefa:', error);
       throw new InternalServerErrorException('Erro ao excluir a tarefa.');
