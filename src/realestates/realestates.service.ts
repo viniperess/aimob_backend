@@ -68,6 +68,8 @@ export class RealestatesService {
       }
       realEstateData.garage = !!realEstateData.garage;
       realEstateData.status = !!realEstateData.status;
+      realEstateData.yard = !!realEstateData.yard;
+      realEstateData.pool = !!realEstateData.pool;
       const createdRealEstate = await this.prisma.realEstate.create({
         data: {
           ...realEstateData,
@@ -85,6 +87,7 @@ export class RealestatesService {
     try {
       return await this.prisma.realEstate.findMany({
         where: { userId },
+        orderBy: { viewsCount: 'desc' },
       });
     } catch (error) {
       console.error('Erro ao buscar imóveis:', error);
@@ -273,6 +276,14 @@ export class RealestatesService {
           data.status !== undefined
             ? Boolean(data.status)
             : existingRealEstate.status,
+        yard:
+          data.yard !== undefined
+            ? Boolean(data.yard)
+            : existingRealEstate.yard,
+        pool:
+          data.pool !== undefined
+            ? Boolean(data.pool)
+            : existingRealEstate.pool,
         registration: data.registration || existingRealEstate.registration,
         images: [],
       };
