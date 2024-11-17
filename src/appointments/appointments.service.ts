@@ -6,11 +6,13 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Appointment, PrismaClient } from '@prisma/client';
+import { Appointment, Task, PrismaClient } from '@prisma/client';
 import { RealestatesService } from 'src/realestates/realestates.service';
 import * as nodemailer from 'nodemailer';
 import { format, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import axios from 'axios';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class AppointmentsService {
@@ -95,9 +97,12 @@ export class AppointmentsService {
       }
 
       const existingAppointment = await this.prisma.appointment.findFirst({
-        where: { visitDate: new Date(visitDate) },
+        where: {
+          visitDate: new Date(visitDate),
+          estateId,
+          userId,
+        },
       });
-
       if (existingAppointment) {
         throw new BadRequestException(
           'Já existe um agendamento para essa data.',
@@ -160,6 +165,7 @@ export class AppointmentsService {
         include: {
           contact: true,
           realEstate: true,
+          tasks: true,
         },
       });
     } catch (error) {
@@ -257,22 +263,165 @@ export class AppointmentsService {
     }
   }
   async remove(id: number, userId: number) {
+    console.log('Tentando excluir agendamento:', id, 'Usuário:', userId);
+
     const appointment = await this.prisma.appointment.findFirst({
       where: { id, userId },
     });
 
     if (!appointment) {
+      console.error('Agendamento não encontrado:', id);
       throw new NotFoundException('Agendamento não encontrado.');
     }
 
     try {
-      return await this.prisma.appointment.delete({
+      const deletedAppointment = await this.prisma.appointment.delete({
         where: { id },
       });
+      console.log('Agendamento excluído com sucesso:', deletedAppointment);
+      return deletedAppointment;
     } catch (error) {
-      console.error('Erro ao excluir o agendamento:', error);
+      console.error('Erro ao excluir agendamento:', error);
+      throw new InternalServerErrorException('Erro ao excluir agendamento.');
+    }
+  }
+
+  async generateAppointmentReport(
+    filter: 'all' | 'completed' | 'pending' | 'monthly' | 'progress',
+    userId: number,
+    month?: number,
+  ) {
+    try {
+      const today = new Date();
+      const whereClause: any = { userId };
+
+      // Aplica o filtro de status
+      if (filter === 'completed') {
+        whereClause.tasks = { some: { status: { equals: 'Concluído' } } };
+      } else if (filter === 'pending') {
+        whereClause.tasks = { some: { status: { equals: 'Pendente' } } };
+      } else if (filter === 'progress') {
+        whereClause.tasks = { some: { status: { equals: 'Em Progresso' } } };
+      }
+
+      // Aplica o filtro de mês como adicional ao filtro de status
+      if (month !== undefined) {
+        const startDate = new Date(today.getFullYear(), month - 1, 1);
+        const endDate = new Date(today.getFullYear(), month, 0);
+        whereClause.visitDate = { gte: startDate, lte: endDate };
+      }
+
+      const appointments = await this.prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          realEstate: {
+            select: {
+              street: true,
+              city: true,
+              number: true,
+              complement: true,
+            },
+          },
+          contact: { select: { name: true } },
+          tasks: { select: { status: true } },
+        },
+      });
+
+      return this.generatePdfReport(appointments);
+    } catch (error) {
+      console.error('Erro ao gerar relatório de agendamentos:', error);
       throw new InternalServerErrorException(
-        'Erro ao excluir o agendamento. Tente novamente.',
+        'Erro ao gerar o relatório de agendamentos. Tente novamente.',
+      );
+    }
+  }
+
+  private async generatePdfReport(
+    appointments: (Appointment & {
+      tasks: { status: string }[];
+      realEstate: {
+        street: string;
+        city: string;
+        number: string;
+        complement: string;
+      };
+      contact: { name: string };
+    })[],
+  ): Promise<Buffer> {
+    const imageUrl =
+      'https://bucket-aimob-images.s3.us-east-2.amazonaws.com/logosemfundo_azul.png';
+    try {
+      const imageResponse = await axios.get(imageUrl, {
+        responseType: 'arraybuffer',
+      });
+      const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+
+      return new Promise((resolve) => {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margins: { top: 50, left: 50, right: 50, bottom: 50 },
+        });
+        const buffers: Buffer[] = [];
+
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(buffers);
+          resolve(pdfBuffer);
+        });
+
+        doc
+          .fontSize(20)
+          .text('Relatório de Agendamentos', { align: 'center' })
+          .image(imageBuffer, 480, 20, { width: 80 })
+          .moveDown();
+
+        doc
+          .fontSize(12)
+          .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
+            align: 'right',
+          })
+          .moveDown();
+
+        doc.fontSize(12).font('Helvetica');
+
+        appointments.forEach((appointment) => {
+          const taskStatuses = appointment.tasks
+            .map((task) => task.status)
+            .join(', ');
+
+          doc
+            .fillColor('#000000')
+            .text(
+              `Imóvel: ${appointment.realEstate?.street} - ${appointment.realEstate?.number} ${appointment.realEstate?.complement}, ${appointment.realEstate?.city}`,
+              { width: 350 },
+            )
+            .text(`Cliente: ${appointment.contact?.name}`, { width: 300 })
+            .text(`Status das Tarefas: ${taskStatuses}`, { width: 200 })
+            .text(
+              `Data e Hora do Agendamento: ${new Date(
+                appointment.visitDate,
+              ).toLocaleDateString('pt-BR')} às ${new Date(
+                appointment.visitDate,
+              ).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`,
+              { width: 300 },
+            )
+            .text(`Observação: ${appointment.observation || 'N/A'}`, {
+              width: 350,
+            })
+            .moveDown(1);
+
+          doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+        });
+
+        doc.end();
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PDF de relatório:', error);
+      throw new InternalServerErrorException(
+        'Erro ao gerar o relatório em PDF.',
       );
     }
   }
