@@ -144,22 +144,49 @@ export class ContactsService {
   }
 
   async remove(id: number, userId: number) {
+    console.log(`Iniciando exclusão do contato: ${id} pelo usuário: ${userId}`);
+
+    // Verificar se o contato existe
     const contact = await this.prisma.contact.findFirst({
       where: { id, userId },
+      include: { tasks: true, appointments: true },
     });
+
     if (!contact) {
-      throw new NotFoundException('Contato não encontrado.');
+      console.error(`Contato não encontrado: ${id}`);
+      throw new Error('Contato não encontrado.');
     }
 
+    // Excluir tarefas relacionadas
+    if (contact.tasks.length > 0) {
+      console.log(
+        `Excluindo ${contact.tasks.length} tarefas relacionadas ao contato ${id}`,
+      );
+      await this.prisma.task.deleteMany({
+        where: { contactId: id },
+      });
+    }
+
+    // Excluir agendamentos relacionados
+    if (contact.appointments.length > 0) {
+      console.log(
+        `Excluindo ${contact.appointments.length} agendamentos relacionados ao contato ${id}`,
+      );
+      await this.prisma.appointment.deleteMany({
+        where: { contactId: id },
+      });
+    }
+
+    // Excluir o contato
     try {
-      return await this.prisma.contact.delete({
+      console.log(`Excluindo contato: ${id}`);
+      await this.prisma.contact.delete({
         where: { id },
       });
+      console.log(`Contato ${id} excluído com sucesso.`);
     } catch (error) {
-      console.error('Erro ao deletar contato:', error);
-      throw new InternalServerErrorException(
-        'Erro ao deletar o contato. Tente novamente.',
-      );
+      console.error(`Erro ao excluir contato ${id}:`, error);
+      throw new Error('Erro ao excluir o contato.');
     }
   }
 
