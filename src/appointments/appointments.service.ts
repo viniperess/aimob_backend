@@ -12,7 +12,7 @@ import * as nodemailer from 'nodemailer';
 import { format, subHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import axios from 'axios';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument = require('pdfkit');
 
 @Injectable()
 export class AppointmentsService {
