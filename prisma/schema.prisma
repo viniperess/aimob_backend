@@ -59,6 +59,7 @@ model RealEstate {
   ownerPhone   String?
   viewsCount   Int           @default(0) 
   interests    Interest[]
+  isPosted     Boolean @default(false)
 }
 
 model Appointment {

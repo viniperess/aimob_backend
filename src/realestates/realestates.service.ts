@@ -51,6 +51,7 @@ export class RealestatesService {
       throw new BadRequestException('Imóvel com este registro já existe.');
     }
     console.log('User ID:', userId);
+
     try {
       if (images && images.length > 0) {
         const imageUrls = await Promise.all(
@@ -70,12 +71,61 @@ export class RealestatesService {
       realEstateData.status = !!realEstateData.status;
       realEstateData.yard = !!realEstateData.yard;
       realEstateData.pool = !!realEstateData.pool;
+      realEstateData.isPosted = !!realEstateData.isPosted;
       const createdRealEstate = await this.prisma.realEstate.create({
         data: {
           ...realEstateData,
           userId: userId,
         },
       });
+
+      const realEstateUrl = `${process.env.FRONTEND_URL}/${createdRealEstate.id}`;
+
+      if (data.isPosted) {
+        const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+        const pageId = process.env.FACEBOOK_PAGE_ID;
+
+        const message = `\n🏠 Novo imóvel disponível\n💬 ${realEstateData.description}\n💵 R$ ${realEstateData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}
+        `;
+
+        try {
+          if (realEstateData.images?.length > 0) {
+            const imageForPost = realEstateData.images[0];
+            const response = await axios.post(
+              `https://graph.facebook.com/v21.0/${pageId}/photos`,
+              {
+                message,
+                url: imageForPost,
+                access_token: pageAccessToken,
+              },
+            );
+
+            if (response.data.id) {
+              await this.prisma.realEstate.update({
+                where: { id: createdRealEstate.id },
+                data: { isPosted: true },
+              });
+            }
+          } else {
+            const response = await axios.post(
+              `https://graph.facebook.com/v21.0/${pageId}/feed`,
+              {
+                message,
+                access_token: pageAccessToken,
+              },
+            );
+
+            if (response.data.id) {
+              await this.prisma.realEstate.update({
+                where: { id: createdRealEstate.id },
+                data: { isPosted: true },
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao postar no Facebook:', error);
+        }
+      }
       return createdRealEstate;
     } catch (error) {
       console.error('Erro ao criar imóvel:', error);
@@ -243,7 +293,15 @@ export class RealestatesService {
     const existingRealEstate = await this.prisma.realEstate.findUnique({
       where: { id },
     });
-
+    const booleanFields = ['garage', 'yard', 'pool', 'status', 'isPosted'];
+    booleanFields.forEach((field) => {
+      if (data[field] === 'true') {
+        data[field] = true;
+      } else if (data[field] === 'false') {
+        data[field] = false;
+      }
+    });
+    console.log('Valor de isPosted recebido no update:', data.isPosted);
     if (!existingRealEstate) {
       throw new NotFoundException('Imóvel não encontrado.');
     }
@@ -284,10 +342,17 @@ export class RealestatesService {
           data.pool !== undefined
             ? Boolean(data.pool)
             : existingRealEstate.pool,
+        isPosted:
+          data.isPosted !== undefined
+            ? Boolean(data.isPosted)
+            : existingRealEstate.isPosted,
         registration: data.registration || existingRealEstate.registration,
         images: [],
       };
-
+      console.log(
+        'Valor de isPosted recebido apos o updateddata:',
+        updatedData.isPosted,
+      );
       if (images && images.length > 0) {
         const imageUrls = await Promise.all(
           images.map(async (image) => {
@@ -301,11 +366,57 @@ export class RealestatesService {
         updatedData.images = existingRealEstate.images;
       }
 
+      if (updatedData.isPosted) {
+        const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+        const pageId = process.env.FACEBOOK_PAGE_ID;
+
+        const realEstateUrl = `${process.env.FRONTEND_URL}/realestate/${id}`;
+        const message = `
+          🏠 Novo imóvel disponível\n💬 ${updatedData.description}\n💵 R$ ${updatedData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}
+        `;
+
+        try {
+          if (updatedData.images?.length > 0) {
+            const imageForPost = updatedData.images[0];
+            const response = await axios.post(
+              `https://graph.facebook.com/v21.0/${pageId}/photos`,
+              {
+                message,
+                url: imageForPost,
+                access_token: pageAccessToken,
+              },
+            );
+            console.log('Resposta do Facebook:', response.data);
+            if (response.data.id) {
+              updatedData.isPosted = true;
+            }
+          } else {
+            const response = await axios.post(
+              `https://graph.facebook.com/v21.0/${pageId}/feed`,
+              {
+                message,
+                access_token: pageAccessToken,
+              },
+            );
+
+            if (response.data.id) {
+              updatedData.isPosted = true;
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao postar no Facebook durante update:', error);
+        }
+      }
+      console.log(
+        'Valor de isPosted recebido apos a logica do updateddata:',
+        updatedData.isPosted,
+      );
       const updatedRealEstate = await this.prisma.realEstate.update({
         where: { id },
         data: updatedData,
       });
 
+      console.log('Payload recebido no update:', updatedRealEstate);
       return updatedRealEstate;
     } catch (error) {
       console.error('Erro ao atualizar imóvel:', error);
