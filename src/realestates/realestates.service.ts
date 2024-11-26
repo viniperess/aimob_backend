@@ -536,7 +536,7 @@ export class RealestatesService {
 
       doc
         .fontSize(12)
-        .text(`Data de Emissão: ${new Date().toLocaleDateString()}`, {
+        .text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, {
           align: 'right',
         })
         .moveDown();
