@@ -85,37 +85,67 @@ export class RealestatesService {
         const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
         const pageId = process.env.FACEBOOK_PAGE_ID;
 
-        const message = `\n🏠 Novo imóvel disponível\n💬 ${realEstateData.description}\n💵 R$ ${realEstateData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}
-        `;
+        const message = `\n🏠 Novo imóvel disponível\n💬 ${realEstateData.description}\n💵 R$ ${realEstateData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}`;
 
         try {
           if (realEstateData.images?.length > 0) {
-            const imageForPost = realEstateData.images[0];
-            const response = await axios.post(
-              `https://graph.facebook.com/v21.0/${pageId}/photos`,
+            // Passo 1: Carregar as imagens com `published: false`
+            const attachedMedia = await Promise.all(
+              realEstateData.images.map(async (imageUrl) => {
+                const response = await axios.post(
+                  `https://graph.facebook.com/v16.0/${pageId}/photos`,
+                  {
+                    url: imageUrl,
+                    published: false, // Define que a imagem não será publicada diretamente
+                    access_token: pageAccessToken,
+                  },
+                );
+                console.log(
+                  'Imagem publicada no álbum (não publicada):',
+                  response.data,
+                );
+                return { media_fbid: response.data.id };
+              }),
+            );
+
+            // Passo 2: Criar a postagem no feed com as imagens
+            const postResponse = await axios.post(
+              `https://graph.facebook.com/v16.0/${pageId}/feed`,
               {
                 message,
-                url: imageForPost,
+                attached_media: attachedMedia, // Vincula as imagens carregadas ao feed
                 access_token: pageAccessToken,
               },
             );
 
-            if (response.data.id) {
+            console.log(
+              'Resposta da publicação com imagens no feed:',
+              postResponse.data,
+            );
+
+            // Atualiza o status de publicação no banco de dados
+            if (postResponse.data.id) {
               await this.prisma.realEstate.update({
                 where: { id: createdRealEstate.id },
                 data: { isPosted: true },
               });
             }
           } else {
-            const response = await axios.post(
-              `https://graph.facebook.com/v21.0/${pageId}/feed`,
+            // Publicação sem imagens
+            const postResponse = await axios.post(
+              `https://graph.facebook.com/v16.0/${pageId}/feed`,
               {
                 message,
                 access_token: pageAccessToken,
               },
             );
 
-            if (response.data.id) {
+            console.log(
+              'Resposta da publicação sem imagens no feed:',
+              postResponse.data,
+            );
+
+            if (postResponse.data.id) {
               await this.prisma.realEstate.update({
                 where: { id: createdRealEstate.id },
                 data: { isPosted: true },
@@ -123,9 +153,13 @@ export class RealestatesService {
             }
           }
         } catch (error) {
-          console.error('Erro ao postar no Facebook:', error);
+          console.error(
+            'Erro ao postar no Facebook:',
+            error.response?.data || error,
+          );
         }
       }
+
       return createdRealEstate;
     } catch (error) {
       console.error('Erro ao criar imóvel:', error);
@@ -370,7 +404,7 @@ export class RealestatesService {
         const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
         const pageId = process.env.FACEBOOK_PAGE_ID;
 
-        const realEstateUrl = `${process.env.FRONTEND_URL}/realestate/${id}`;
+        const realEstateUrl = `${process.env.FRONTEND_URL}/${id}`;
         const message = `
           🏠 Novo imóvel disponível\n💬 ${updatedData.description}\n💵 R$ ${updatedData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}
         `;
