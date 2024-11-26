@@ -48,7 +48,8 @@ export class UsersService {
     if (image) {
       data.image = await this.uploadToS3(image);
     } else {
-      data.image = null;
+      data.image =
+        'https://img.freepik.com/vetores-premium/icone-de-perfil-de-avatar-padrao-imagem-de-usuario-de-midia-social-cinza-avatar-icone-em-branco-silhueta-vetor-ilustracao_561158-3485.jpg?w=740';
     }
 
     try {

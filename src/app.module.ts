@@ -13,7 +13,7 @@ import { ContactsModule } from './contacts/contacts.module';
 import { TasksModule } from './tasks/tasks.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ForgotPasswordModule } from './forgot-password/forgot-password.module';
-
+import { CreciModule } from './creci/creci.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +29,7 @@ import { ForgotPasswordModule } from './forgot-password/forgot-password.module';
     TasksModule,
     NotificationsModule,
     ForgotPasswordModule,
+    CreciModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
