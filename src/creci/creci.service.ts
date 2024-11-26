@@ -9,7 +9,7 @@ export class CreciService {
       port: 443,
       path: `/?creci=${encodeURIComponent(creci)}`,
       method: 'GET',
-      rejectUnauthorized: false, // Ignorar SSL inválido
+      rejectUnauthorized: false,
     };
 
     console.log('Iniciando requisição para API CRECI...');
