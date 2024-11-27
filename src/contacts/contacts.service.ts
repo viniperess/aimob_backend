@@ -269,7 +269,9 @@ export class ContactsService {
             .text(`Email: ${contact.email}`, { width: 200 })
             .text(`Telefone: ${contact.phone}`, { width: 200 })
             .text(
-              `Data da Criação: ${contact.createdAt.toLocaleDateString()}`,
+              `Data da Criação: ${contact.createdAt.toLocaleDateString(
+                'pt-BR',
+              )}`,
               {
                 width: 200,
               },

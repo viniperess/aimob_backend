@@ -388,6 +388,10 @@ export class AppointmentsService {
           const taskStatuses = appointment.tasks
             .map((task) => task.status)
             .join(', ');
+          const adjustedVisitDate = subHours(
+            new Date(appointment.visitDate),
+            3,
+          );
 
           doc
             .fillColor('#000000')
@@ -398,14 +402,11 @@ export class AppointmentsService {
             .text(`Cliente: ${appointment.contact?.name}`, { width: 300 })
             .text(`Status das Tarefas: ${taskStatuses}`, { width: 200 })
             .text(
-              `Data e Hora do Agendamento: ${new Date(
-                appointment.visitDate,
-              ).toLocaleDateString('pt-BR')} às ${new Date(
-                appointment.visitDate,
-              ).toLocaleTimeString('pt-BR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}`,
+              `Data e Hora do Agendamento: ${format(
+                adjustedVisitDate,
+                "dd/MM/yyyy 'às' HH:mm",
+                { locale: ptBR },
+              )}`,
               { width: 300 },
             )
             .text(`Observação: ${appointment.observation || 'N/A'}`, {
