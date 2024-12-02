@@ -85,7 +85,11 @@ export class RealestatesService {
         const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
         const pageId = process.env.FACEBOOK_PAGE_ID;
 
-        const message = `\n🏠 Novo imóvel disponível\n💬 ${realEstateData.description}\n💵 R$ ${realEstateData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}`;
+        const message = `\n🏠 Novo imóvel disponível\n💬 ${
+          realEstateData.description
+        }\n💵 ${this.formatCurrency(
+          realEstateData.salePrice,
+        )}\n🔗 Confira mais detalhes: ${realEstateUrl}`;
 
         try {
           if (realEstateData.images?.length > 0) {
@@ -406,7 +410,11 @@ export class RealestatesService {
 
         const realEstateUrl = `${process.env.FRONTEND_URL}/${id}`;
         const message = `
-          🏠 Novo imóvel disponível\n💬 ${updatedData.description}\n💵 R$ ${updatedData.salePrice}\n🔗 Confira mais detalhes: ${realEstateUrl}
+          🏠 Novo imóvel disponível\n💬 ${
+            updatedData.description
+          }\n💵 ${this.formatCurrency(
+          updatedData.salePrice,
+        )}\n🔗 Confira mais detalhes: ${realEstateUrl}
         `;
 
         try {
@@ -562,7 +570,9 @@ export class RealestatesService {
           .text(`Garagem: ${realEstate.garage ? 'Sim' : 'Não'}`, { width: 500 })
           .text(
             `Preço de Venda: ${
-              realEstate.salePrice ? `R$ ${realEstate.salePrice}` : 'N/A'
+              realEstate.salePrice
+                ? this.formatCurrency(realEstate.salePrice)
+                : 'N/A'
             }`,
             { width: 500 },
           )
@@ -579,5 +589,12 @@ export class RealestatesService {
 
       doc.end();
     });
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   }
 }
