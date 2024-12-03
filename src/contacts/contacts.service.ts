@@ -146,47 +146,73 @@ export class ContactsService {
   async remove(id: number, userId: number) {
     console.log(`Iniciando exclusão do contato: ${id} pelo usuário: ${userId}`);
 
-    // Verificar se o contato existe
+    // Busca o contato e suas associações
     const contact = await this.prisma.contact.findFirst({
       where: { id, userId },
-      include: { tasks: true, appointments: true },
+      include: {
+        tasks: { include: { appointment: true } }, // Inclui os agendamentos associados às tarefas
+        appointments: true, // Agendamentos associados diretamente ao contato
+      },
     });
 
     if (!contact) {
       console.error(`Contato não encontrado: ${id}`);
-      throw new Error('Contato não encontrado.');
+      throw new NotFoundException('Contato não encontrado.');
     }
 
-    // Excluir tarefas relacionadas
-    if (contact.tasks.length > 0) {
-      console.log(
-        `Excluindo ${contact.tasks.length} tarefas relacionadas ao contato ${id}`,
-      );
-      await this.prisma.task.deleteMany({
-        where: { contactId: id },
-      });
-    }
-
-    // Excluir agendamentos relacionados
-    if (contact.appointments.length > 0) {
-      console.log(
-        `Excluindo ${contact.appointments.length} agendamentos relacionados ao contato ${id}`,
-      );
-      await this.prisma.appointment.deleteMany({
-        where: { contactId: id },
-      });
-    }
-
-    // Excluir o contato
     try {
-      console.log(`Excluindo contato: ${id}`);
-      await this.prisma.contact.delete({
-        where: { id },
+      // Verificar se há tarefas de outros usuários
+      const remainingTasks = await this.prisma.task.findMany({
+        where: { contactId: contact.id },
       });
+
+      if (remainingTasks.some((task) => task.userId !== userId)) {
+        throw new BadRequestException(
+          'Não é possível excluir o contato, pois ele ainda está associado a outras tarefas.',
+        );
+      }
+
+      // Excluir agendamentos associados às tarefas do corretor atual
+      const userTasks = contact.tasks.filter((task) => task.userId === userId);
+      const appointmentIds = userTasks
+        .map((task) => task.appointment?.id)
+        .filter((id) => id !== null);
+
+      if (appointmentIds.length > 0) {
+        await this.prisma.appointment.deleteMany({
+          where: {
+            id: { in: appointmentIds },
+          },
+        });
+      }
+
+      // Excluir diretamente agendamentos associados ao contato
+      if (contact.appointments.length > 0) {
+        await this.prisma.appointment.deleteMany({
+          where: { id: { in: contact.appointments.map((a) => a.id) } },
+        });
+      }
+
+      // Excluir as tarefas do corretor atual
+      if (userTasks.length > 0) {
+        await this.prisma.task.deleteMany({
+          where: {
+            id: { in: userTasks.map((task) => task.id) },
+          },
+        });
+      }
+
+      // Excluir o contato
+      await this.prisma.contact.delete({
+        where: { id: contact.id },
+      });
+
       console.log(`Contato ${id} excluído com sucesso.`);
     } catch (error) {
-      console.error(`Erro ao excluir contato ${id}:`, error);
-      throw new Error('Erro ao excluir o contato.');
+      console.error(`Erro ao excluir contato ${id}:`, error.message || error);
+      throw error instanceof BadRequestException
+        ? error
+        : new InternalServerErrorException('Erro ao excluir o contato.');
     }
   }
 

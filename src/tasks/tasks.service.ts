@@ -132,36 +132,26 @@ export class TasksService {
       });
       console.log('Tarefa excluída com sucesso:', deletedTask);
 
+      if (appointmentId) {
+        console.log('Excluindo agendamento associado:', appointmentId);
+        await this.prisma.appointment.delete({
+          where: { id: appointmentId },
+        });
+      }
+
       if (contactId) {
-        console.log(
-          'Verificando se existem outras tarefas relacionadas ao contato:',
-          contactId,
-        );
+        console.log('Verificando tarefas restantes para o contato:', contactId);
         const remainingTasks = await this.prisma.task.findMany({
           where: { contactId },
         });
 
         if (remainingTasks.length === 0) {
-          console.log(
-            'Nenhuma outra tarefa encontrada. Excluindo contato:',
-            contactId,
-          );
+          console.log('Nenhuma tarefa restante. Excluindo contato:', contactId);
           await this.prisma.contact.delete({
             where: { id: contactId },
           });
-
-          if (appointmentId) {
-            console.log(
-              'Excluindo agendamento relacionado ao contato:',
-              appointmentId,
-            );
-            await this.prisma.appointment.delete({
-              where: { id: appointmentId },
-            });
-          }
         }
       }
-
       return deletedTask;
     } catch (error) {
       console.error('Erro ao excluir a tarefa:', error);

@@ -51,7 +51,7 @@ model RealEstate {
   registration String        @unique
   images       String[]   
   userId       Int
-  user         User          @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   tasks        Task[]
   ownerName    String?
@@ -70,9 +70,9 @@ model Appointment {
   userId        Int?
   contactId     Int?
   estateId      Int?
-  user          User?       @relation(fields: [userId], references: [id])
-  contact       Contact?    @relation(fields: [contactId], references: [id])
-  realEstate    RealEstate? @relation(fields: [estateId], references: [id])
+  user          User?       @relation(fields: [userId], references: [id],onDelete: Cascade)
+  contact       Contact?    @relation(fields: [contactId], references: [id],onDelete: Cascade)
+  realEstate    RealEstate? @relation(fields: [estateId], references: [id],onDelete: Cascade)
   tasks         Task[]
 }
 
@@ -84,10 +84,10 @@ model Task {
   description   String?
   status        String?
   estateId      Int?
-  user          User?          @relation(fields: [userId], references: [id])
-  appointment   Appointment?   @relation(fields: [appointmentId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id],onDelete: Cascade)
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   contact       Contact?       @relation(fields: [contactId], references: [id])
-  realEstate    RealEstate?    @relation(fields: [estateId], references: [id])
+  realEstate    RealEstate?    @relation(fields: [estateId], references: [id],onDelete: Cascade)
   notifications Notification[]
 }
 
@@ -104,7 +104,7 @@ model Contact {
   phone        String
   createdAt    DateTime      @default(now())
   userId       Int?         
-  user         User?          @relation(fields: [userId], references: [id])
+  user         User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   tasks        Task[]
   interests    Interest[]
