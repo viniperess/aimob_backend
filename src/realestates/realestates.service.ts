@@ -218,6 +218,7 @@ export class RealestatesService {
       console.log('Tipo recebido para pesquisa:', type);
       const searchResults = await this.prisma.realEstate.findMany({
         where: {
+          status: true,
           type: {
             contains: type,
             mode: 'insensitive',
@@ -265,8 +266,10 @@ export class RealestatesService {
 
       const cleanedFilters = parseFilters(filters);
       console.log('Filtros limpos recebidos no serviço:', cleanedFilters);
-      const whereConditions: any = {};
 
+      const whereConditions: any = {
+        status: true,
+      };
       if (cleanedFilters.bedrooms) {
         whereConditions.bedrooms = cleanedFilters.bedrooms;
         console.log('Filtro de quartos aplicado:', cleanedFilters.bedrooms);
